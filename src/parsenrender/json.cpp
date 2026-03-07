@@ -3,6 +3,7 @@
 #include <drogon/HttpTypes.h>
 #include <json/value.h>
 
+#include <algorithm>
 #include <format>
 #include <memory>
 #include <mutex>
@@ -145,6 +146,15 @@ HttpWindowWrapper::HttpWindowWrapper() {
     window.emplace(win_label);
     host.fill('\0');
     host_endpoint.fill('\0');
+}
+HttpWindowWrapper::HttpWindowWrapper(const std::string& label, const std::string& host, const std::string& endpoint, const int port){
+    win_idx = window_count++;
+    win_label = label;
+    window.emplace(win_label);
+    std::copy(host.begin(), host.end(), this->host.begin());
+    std::copy(endpoint.begin(), endpoint.end(), this->host_endpoint.begin());
+    this->port = port;
+    in_init_phase = false;
 }
 void HttpWindowWrapper::initFRs() {
     widget_updates_fr["text"] = [this](const std::string& label_, const Json::Value& params) {

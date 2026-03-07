@@ -34,7 +34,8 @@ set(WIDGET_SOURCES
 set(WINDOW_SOURCES
     src/window/window.cpp)
 set(PARSING_SOURCES
-    src/parsenrender/json.cpp)
+    src/parsenrender/json.cpp
+    src/render/init.cpp)
 set(UTIL_SOURCES
     src/utils/util.cpp)
 # 3. Create the Executable

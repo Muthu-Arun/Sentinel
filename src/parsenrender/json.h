@@ -27,7 +27,7 @@ protected:
     std::unordered_map<std::string, std::vector<double>> map_vector_double;
     std::unordered_map<std::string, std::vector<std::string>> map_vector_string;
     std::array<char, 250> host, host_endpoint;
-    uint64_t port = 80;
+    uint32_t port = 80;
     bool in_init_phase = 1;
 
 public:
@@ -35,6 +35,7 @@ public:
     uint32_t win_idx;
     std::string win_label;
     HttpWindowWrapper();
+    HttpWindowWrapper(const std::string& label, const std::string& host, const std::string& endpoint, const int port);
     std::optional<HttpPoll::Poll> poll;
     std::optional<Window::Window> window;
     void addText(const std::string& _label, std::string_view data);
