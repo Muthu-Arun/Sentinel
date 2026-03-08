@@ -5,11 +5,16 @@ This needs to someting like
 
 */
 #include <json/value.h>
+
+#include <memory>
 #include <optional>
+
+#include "json.h"
 namespace MainWindow {
+extern std::vector<std::unique_ptr<ParseJson::HttpWindowWrapper>> poll_windows;
 void init();
-void renderMainMenu();
-std::optional<Json::Value> checkForConfig();
+void renderWindows();
+std::optional<Json::Value> loadConfig();
 void clean();
 
 }  // namespace MainWindow

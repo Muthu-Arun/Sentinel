@@ -6,7 +6,7 @@
             "type": "cppdbg",
             "request": "launch",
             // Path to your compiled binary
-            "program": "${workspaceFolder}/build/app", 
+            "program": "${workspaceFolder}/build/sentinel", 
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

@@ -12,6 +12,7 @@
 #include "json.h"
 #include "poll.h"
 #include "widget.h"
+#include "init.h"
 int main(int, char**) {
     // 1. Setup GLFW
     HttpPoll::init();
@@ -64,11 +65,12 @@ int main(int, char**) {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init(glsl_version);
     Widgets::init();
-    ParseJson::HttpWindowWrapper win;
-    win.initFRs();
+    // ParseJson::HttpWindowWrapper win;
+    // win.initFRs();
     // Window::window win("hello");
     // win.addWidget("win1", std::make_unique<Widget::text<>>("sample"));
     // 3. Main loop
+    MainWindow::init();
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
 
@@ -76,8 +78,8 @@ int main(int, char**) {
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        // win.render();
-        win.renderHeader();
+        MainWindow::renderWindows();
+        // win.renderHeader();
 
         // Rendering
         ImGui::Render();

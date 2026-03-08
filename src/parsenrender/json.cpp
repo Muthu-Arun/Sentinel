@@ -140,21 +140,25 @@ void parseDynamicJson(const Json::Value& root) {
 */
 uint32_t HttpWindowWrapper::window_count = 0;
 
-HttpWindowWrapper::HttpWindowWrapper() {
+HttpWindowWrapper::HttpWindowWrapper() : in_init_phase(true) {
     win_idx = window_count++;
     win_label = std::format("Window - {}", win_idx);
     window.emplace(win_label);
-    host.fill('\0');
-    host_endpoint.fill('\0');
+    // host.fill('\0');
+    // host_endpoint.fill('\0');
+    initFRs();
 }
-HttpWindowWrapper::HttpWindowWrapper(const std::string& label, const std::string& host, const std::string& endpoint, const int port){
+HttpWindowWrapper::HttpWindowWrapper(const std::string& label, const std::string& host,
+                                     const std::string& endpoint, const int port)
+    : in_init_phase(false) {
     win_idx = window_count++;
     win_label = label;
     window.emplace(win_label);
     std::copy(host.begin(), host.end(), this->host.begin());
     std::copy(endpoint.begin(), endpoint.end(), this->host_endpoint.begin());
     this->port = port;
-    in_init_phase = false;
+    poll.emplace(this->host.data(), this->host_endpoint.data(), this->port);
+    initFRs();
 }
 void HttpWindowWrapper::initFRs() {
     widget_updates_fr["text"] = [this](const std::string& label_, const Json::Value& params) {
