@@ -266,6 +266,7 @@ void HttpWindowWrapper::renderHeader() {
     }
     if (poll->is_data_available()) {
         parseJSON();
+        poll->parsed_data(); //  is_data_available -> false
     }
     window->render();
     ImGui::End();

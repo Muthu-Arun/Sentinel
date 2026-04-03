@@ -38,8 +38,12 @@ set(PARSING_SOURCES
     src/render/init.cpp)
 set(UTIL_SOURCES
     src/utils/util.cpp)
+
+set(SSE_SOURCES
+    src/sse/sse.cpp)
 # 3. Create the Executable
-add_executable(sentinel src/main.cpp ${IMGUI_SOURCES} ${HTTP_SOURCES} ${WIDGET_SOURCES} ${WINDOW_SOURCES} ${PARSING_SOURCES} ${IM_PLOT_SOURCES} ${UTIL_SOURCES})
+add_executable(sentinel src/main.cpp ${IMGUI_SOURCES} ${HTTP_SOURCES} ${WIDGET_SOURCES} ${WINDOW_SOURCES} ${PARSING_SOURCES} ${IM_PLOT_SOURCES} ${UTIL_SOURCES}
+                                        ${SSE_SOURCES})
 
 # 4. Include Directories
 # Allow includes like <imgui.h> and <backends/imgui_impl_glfw.h>
