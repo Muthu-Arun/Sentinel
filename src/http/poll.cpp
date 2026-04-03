@@ -141,15 +141,16 @@ std::function<void(const std::string&, std::string&, std::atomic<bool>&)> Poll::
     return poller;
 }
 void Poll::pollImage(const std::string& _endpoint, std::string& img_buf,
-                     std::atomic<bool>& is_new_data_available) {
+                     std::mutex& img_buf_mtx, std::atomic<bool>& is_new_data_available) {
     HttpRequestPtr img_request = HttpRequest::newHttpRequest();
     img_request->setMethod(drogon::HttpMethod::Get);
     img_request->setPath(_endpoint);
 
     client->sendRequest(img_request,
-                        [&is_new_data_available, &img_buf](drogon::ReqResult reqRes,
+                        [&is_new_data_available, &img_buf, &img_buf_mtx](drogon::ReqResult reqRes,
                                                            const drogon::HttpResponsePtr& resPtr) {
                             if (reqRes == drogon::ReqResult::Ok) {
+                                std::lock_guard<std::mutex> _lock(img_buf_mtx);
                                 img_buf = resPtr->getBody();
                                 is_new_data_available.store(true);
                             } else {

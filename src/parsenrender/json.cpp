@@ -115,7 +115,7 @@ void HttpWindowWrapper::addImage(const std::string& _label, const std::string& e
     window->addWidget(_label,
                       std::make_unique<Widgets::Image<std::string>>(
                           _label, map_string[_label], network_buffer_mtx[_label], endpoint));
-    poll->pollImage(endpoint, map_string[_label], window->widgets.at(_label)->is_data_available);
+    poll->pollImage(endpoint, map_string[_label], network_buffer_mtx[_label], window->widgets.at(_label)->is_data_available);
 }
 /*
 void parseDynamicJson(const Json::Value& root) {
@@ -230,7 +230,7 @@ void HttpWindowWrapper::initFRs() {
         if (params.isMember("endpoint")) {
             if (window->isWidgetPresent(label_)) {
                 std::string endpoint = params["endpoint"].asString();
-                poll->pollImage(endpoint, map_string[label_],
+                poll->pollImage(endpoint, map_string[label_], network_buffer_mtx[label_],
                                 window->widgets.at(label_)->is_data_available);
             } else {
                 std::string endpoint = params["endpoint"].asString();
@@ -241,8 +241,9 @@ void HttpWindowWrapper::initFRs() {
 }
 void HttpWindowWrapper::parseJSON() {
     auto response = poll->getJSONBodyPtr();
+    if (!response.first) return;
     std::lock_guard<std::mutex> _lock(*(response.second));
-    auto json = *(response.first);
+    const Json::Value& json = *(response.first);
     for (const std::string& id : json.getMemberNames()) {
         widget_updates_fr.at(json[id]["type"].asString())(id, json[id]);
     }

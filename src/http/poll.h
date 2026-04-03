@@ -55,7 +55,7 @@ public:
     std::function<void(const std::string&, drogon::HttpMethod, const std::string&)>
     getButtonCallback();
     std::function<void(const std::string&, std::string&, std::atomic<bool>&)> getImagePoller();
-    void pollImage(const std::string& endpoint, std::string& img_buf, std::atomic<bool>& is_new_data_available);
+    void pollImage(const std::string& endpoint, std::string& img_buf, std::mutex& img_buf_mtx, std::atomic<bool>& is_new_data_available);
     ~Poll();
 
 private:
