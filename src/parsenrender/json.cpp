@@ -240,8 +240,9 @@ void HttpWindowWrapper::initFRs() {
     };
 }
 void HttpWindowWrapper::parseJSON() {
-    auto jsonptr = poll->getJSONBodyPtr();
-    const Json::Value& json = *jsonptr;
+    auto response = poll->getJSONBodyPtr();
+    std::lock_guard<std::mutex> _lock(*(response.second));
+    auto json = *(response.first);
     for (const std::string& id : json.getMemberNames()) {
         widget_updates_fr.at(json[id]["type"].asString())(id, json[id]);
     }

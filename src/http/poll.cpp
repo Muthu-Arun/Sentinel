@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <format>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <print>
 #include <string>
@@ -58,10 +59,10 @@ void pollData() {
         });
 }
 
-std::pair<const std::variant<std::string, Json::Value>&, std::mutex&> Poll::getBody()
-    const noexcept {
-    return {response_body, res_body_mtx};
-}
+// std::pair<const std::variant<std::string, Json::Value>&, std::mutex&> Poll::getBody()
+//     const noexcept {
+//     return {response_body, res_body_mtx};
+// }
 
 bool Poll::is_data_available() const noexcept {
     return is_new_data_available.load();
@@ -73,29 +74,32 @@ Poll::Poll(std::string_view remote_url, std::string_view endpoint, uint16_t port
     request = HttpRequest::newHttpRequest();
     request->setPath(this->endpoint);
     timer_id = drogon::app().getLoop()->runEvery(poll_interval, [this]() {
-        client->sendRequest(request,
-                            [this](drogon::ReqResult result, const HttpResponsePtr& response) {
-                                if (result != drogon::ReqResult::Ok) {
-                                    std::cerr << "request Failed\n";
-                                    return;
-                                }
-                                std::lock_guard<std::mutex> _lock(res_body_mtx);
-                                // response_body.emplace<std::string>(response->body());
-                                json_ptr = response->getJsonObject();
-                                is_new_data_available.store(true);
-                            }, timeout);
+        client->sendRequest(
+            request,
+            [this](drogon::ReqResult result, const HttpResponsePtr& response) {
+                if (result != drogon::ReqResult::Ok) {
+                    std::cerr << "request Failed\n";
+                    return;
+                }
+                std::lock_guard<std::mutex> _lock(*res_body_mtx);
+                // response_body.emplace<std::string>(response->body());
+                json_ptr = response->getJsonObject();
+                is_new_data_available.store(true);
+            },
+            timeout);
     });
 }
 Poll::~Poll() {
     drogon::app().getLoop()->invalidateTimer(timer_id);  // Stops the Polling task
 }
 
-void Poll::parsed_data() noexcept{
+void Poll::parsed_data() noexcept {
     is_new_data_available.store(false);
 }
 
-std::shared_ptr<Json::Value>& Poll::getJSONBodyPtr() noexcept {
-    return json_ptr;
+std::pair<std::shared_ptr<Json::Value>, std::shared_ptr<std::mutex>> Poll::getJSONBodyPtr() noexcept {
+    std::lock_guard<std::mutex> _lock(*res_body_mtx);
+    return std::make_pair(json_ptr, res_body_mtx);
 }
 std::function<void(const std::string&, drogon::HttpMethod, const std::string&)>
 Poll::getButtonCallback() {
@@ -138,17 +142,16 @@ void Poll::pollImage(const std::string& _endpoint, std::string& img_buf,
     img_request->setMethod(drogon::HttpMethod::Get);
     img_request->setPath(_endpoint);
 
-    client->sendRequest(img_request, [&is_new_data_available, &img_buf](drogon::ReqResult reqRes, const drogon::HttpResponsePtr& resPtr){
-        if (reqRes == drogon::ReqResult::Ok) {
-            img_buf = resPtr->getBody();
-            is_new_data_available.store(true);
-        }
-        else{
-            std::println("Image request failed");
-        }
-    });
-
+    client->sendRequest(img_request,
+                        [&is_new_data_available, &img_buf](drogon::ReqResult reqRes,
+                                                           const drogon::HttpResponsePtr& resPtr) {
+                            if (reqRes == drogon::ReqResult::Ok) {
+                                img_buf = resPtr->getBody();
+                                is_new_data_available.store(true);
+                            } else {
+                                std::println("Image request failed");
+                            }
+                        });
 }
-
 
 }  // namespace HttpPoll
