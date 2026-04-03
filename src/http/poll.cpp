@@ -25,7 +25,7 @@ static drogon::HttpClientPtr shared_client;
 
 void init() {
     // 1. Initialize the client
-    shared_client = drogon::HttpClient::newHttpClient("https://build-it-together.click/");
+    // shared_client = drogon::HttpClient::newHttpClient("https://build-it-together.click/");
 
     // 2. Schedule the recurring task
     /*
@@ -69,7 +69,10 @@ bool Poll::is_data_available() const noexcept {
 }
 
 Poll::Poll(std::string_view remote_url, std::string_view endpoint, uint16_t port)
-    : remote_url(remote_url), endpoint(endpoint), port(port) {
+    : res_body_mtx(std::make_shared<std::mutex>()),
+      remote_url(remote_url),
+      endpoint(endpoint),
+      port(port) {
     client = HttpClient::newHttpClient(this->remote_url, port);
     request = HttpRequest::newHttpRequest();
     request->setPath(this->endpoint);
@@ -97,7 +100,8 @@ void Poll::parsed_data() noexcept {
     is_new_data_available.store(false);
 }
 
-std::pair<std::shared_ptr<Json::Value>, std::shared_ptr<std::mutex>> Poll::getJSONBodyPtr() noexcept {
+std::pair<std::shared_ptr<Json::Value>, std::shared_ptr<std::mutex>>
+Poll::getJSONBodyPtr() noexcept {
     std::lock_guard<std::mutex> _lock(*res_body_mtx);
     return std::make_pair(json_ptr, res_body_mtx);
 }
