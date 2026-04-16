@@ -14,6 +14,35 @@ set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/imgui)
 set(SRC_DIR ${CMAKE_SOURCE_DIR}/src)
 set(VENDOR_DIR ${CMAKE_SOURCE_DIR}/vendor)
 
+option(USE_TSAN "Enable ThreadSanitizer" OFF)
+option(USE_ASAN "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+
+# 2. Prevent enabling both at the same time
+if (USE_TSAN AND USE_ASAN)
+    message(FATAL_ERROR "You cannot enable both TSan and ASan at the same time. Choose one.")
+endif()
+
+# 3. Setup compiler and linker flags based on the selection
+if (USE_TSAN)
+    message(STATUS "ThreadSanitizer (TSan) Enabled")
+    
+    # -fsanitize=thread: Enables TSan
+    # -g: Generates debug symbols (crucial for line numbers in errors)
+    # -O1: Minimum optimization level recommended for TSan to work well
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread -g -O1")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=thread")
+
+elseif (USE_ASAN)
+    message(STATUS "AddressSanitizer (ASan) and UBSan Enabled")
+    
+    # -fsanitize=address,undefined: Enables ASan and UBSan
+    # -fno-omit-frame-pointer: Ensures perfect stack traces in error logs
+    # -g: Generates debug symbols
+    # -O1: Keeps performance reasonable while finding bugs
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer -g -O1")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address -fsanitize=undefined")
+endif()
+
 set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_demo.cpp
