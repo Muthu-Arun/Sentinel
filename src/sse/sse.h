@@ -1,4 +1,5 @@
 // Handles server send events and parsing, try not to modify the http polling
+#include <curl/curl.h>
 #include <drogon/HttpClient.h>
 #include <drogon/HttpRequest.h>
 #include <json/value.h>
@@ -8,23 +9,31 @@
 #include <memory>
 #include <mutex>
 #include <queue>
+#include <string>
 #include <string_view>
 namespace Sse {
+struct UserData {
+    std::queue<std::string> responses;
+    std::mutex response_mtx;
+    std::string buffer;
+    std::atomic<bool> is_new_data_available = 0;
+};
+
 Json::Value extractPayload(std::string_view buffer);
+
+size_t sse_curl_callback(char* ptr, size_t size, size_t nmemb, void* userdata);
 
 class SSE {
 protected:
-    std::queue<std::string> responses;
-    std::unique_ptr<std::mutex> responses_mtx;
-    std::atomic<bool> is_new_data_available = 0;
+    UserData data;
     std::string remote_url, endpoint;
     uint64_t port;
+    CURL* curl;
 
 public:
     SSE(std::string_view remote_url_, std::string_view endpoint_, int port = 80);
     bool is_data_available() const noexcept;
 
 private:
-    size_t sse_curl_callback(char* ptr, size_t size, size_t nmemb, void* userdata);
 };
 }  // namespace Sse
