@@ -68,7 +68,7 @@ bool Poll::is_data_available() const noexcept {
     return is_new_data_available.load();
 }
 
-Poll::Poll(std::string_view remote_url, std::string_view endpoint, uint16_t port)
+Poll::Poll(std::string_view remote_url, std::string_view endpoint, int port)
     : res_body_mtx(std::make_shared<std::mutex>()),
       remote_url(remote_url),
       endpoint(endpoint),

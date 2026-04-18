@@ -41,13 +41,13 @@ protected:
     std::atomic<bool> is_new_data_available = 0;
     std::string remote_url;
     std::string endpoint;
-    uint64_t port;
+    int port;
     HttpRequestPtr request;
     double timeout = 3;
     std::chrono::milliseconds poll_interval = std::chrono::milliseconds(2000);
 
 public:
-    Poll(std::string_view remote_url, std::string_view endpoint, uint16_t port = 80);
+    Poll(std::string_view remote_url, std::string_view endpoint, int port = 80);
     bool is_data_available() const noexcept;
     void parsed_data() noexcept;
     std::pair<std::shared_ptr<Json::Value>, std::shared_ptr<std::mutex>> getJSONBodyPtr() noexcept;
