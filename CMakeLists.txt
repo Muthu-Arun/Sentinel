@@ -8,6 +8,7 @@ add_compile_options(-Wall -Wextra )
 find_package(glfw3 REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(Drogon REQUIRED)
+find_package(CURL REQUIRED)
 # 2. Define ImGui Sources
 # We need the core files AND the specific backends for GLFW and OpenGL3
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/imgui)
@@ -90,4 +91,4 @@ target_include_directories(sentinel PUBLIC
 )
 
 # 5. Link Libraries
-target_link_libraries(sentinel PRIVATE glfw OpenGL::GL Drogon::Drogon pthread)
+target_link_libraries(sentinel PRIVATE glfw OpenGL::GL Drogon::Drogon pthread CURL::libcurl)

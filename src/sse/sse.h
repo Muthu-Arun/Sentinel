@@ -19,14 +19,15 @@ struct UserData {
     std::atomic<bool> is_new_data_available = 0;
 };
 
-Json::Value extractPayload(std::string_view buffer);
+Json::Value extractPayload(std::string_view buffer) noexcept;
 
 size_t sse_curl_callback(char* ptr, size_t size, size_t nmemb, void* userdata);
 
 class SSE {
 protected:
+    // Don't access UserData.buffer outside the connection thread
     UserData data;
-    std::string remote_url, endpoint;
+    std::string remote_url, endpoint, remote;
     uint64_t port;
     CURL* curl;
 
@@ -35,5 +36,6 @@ public:
     bool is_data_available() const noexcept;
 
 private:
+    std::thread connection_thread;
 };
 }  // namespace Sse
