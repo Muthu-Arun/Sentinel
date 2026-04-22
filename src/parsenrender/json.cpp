@@ -273,8 +273,10 @@ void HttpWindowWrapper::parseJSON() {
     } else if (std::holds_alternative<Sse::SSE>(connection)) {
         while (std::get<Sse::SSE>(connection).is_data_available()) {
             auto json = std::get<Sse::SSE>(connection).getJson();
-            for (const std::string& id : json.getMemberNames()) {
-                widget_updates_fr.at(json[id]["type"].asString())(id, json[id]);
+            if (json && json.value().isObject()) {
+                for (const std::string& id : json.value().getMemberNames()) {
+                    widget_updates_fr.at(json.value()[id]["type"].asString())(id, json.value()[id]);
+                }
             }
         }
     }
@@ -301,7 +303,8 @@ void HttpWindowWrapper::renderHeader() {
         if (std::get<Sse::SSE>(connection).is_data_available()) {
             parseJSON();
         }
-    } else if (std::holds_alternative<HttpPoll::Poll>(connection) && std::get<HttpPoll::Poll>(connection).is_data_available()) {
+    } else if (std::holds_alternative<HttpPoll::Poll>(connection) &&
+               std::get<HttpPoll::Poll>(connection).is_data_available()) {
         parseJSON();
         std::get<HttpPoll::Poll>(connection).parsed_data();  //  is_data_available -> false
     }

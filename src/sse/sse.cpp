@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <format>
 #include <mutex>
+#include <optional>
 #include <print>
 #include <thread>
 #include <utility>
@@ -26,6 +27,7 @@ size_t sse_curl_callback(char* ptr, size_t size, size_t nmemb, void* userdata) {
     streamBuffer.append(ptr, bytes);
 
     // Parse the buffer for the double-newline SSE delimiter
+    std::println("In curl callback, buffer {}", streamBuffer);
     size_t pos = 0;
     while ((pos = streamBuffer.find("\n\n")) != std::string::npos) {
         std::string eventPayload = streamBuffer.substr(0, pos);
@@ -38,9 +40,22 @@ size_t sse_curl_callback(char* ptr, size_t size, size_t nmemb, void* userdata) {
         if (dataPos != std::string::npos) {
             std::string actualData = eventPayload.substr(dataPos + dataPrefix.length());
             std::println("received sse data: {}", actualData);
-            std::lock_guard<std::mutex> lock_(dataStruct->response_mtx);
-            dataStruct->responses.emplace(std::move(actualData));
-            dataStruct->is_new_data_available.store(true, std::memory_order_relaxed);
+
+            // 1. Setup the parser
+            Json::Value parsedJson;
+            Json::CharReaderBuilder builder;
+            std::string errs;
+            std::istringstream stream(actualData);
+
+            // 2. Parse the string into an object right here
+            if (Json::parseFromStream(builder, stream, &parsedJson, &errs)) {
+                // 3. Emplace the PARSED OBJECT, not the string
+                std::lock_guard<std::mutex> lock_(dataStruct->response_mtx);
+                dataStruct->responses.emplace(std::move(parsedJson));
+                dataStruct->is_new_data_available.store(true, std::memory_order_relaxed);
+            } else {
+                std::cerr << "Dropped invalid JSON payload. Error: " << errs << "\n";
+            }
         }
     }
 
@@ -58,7 +73,7 @@ SSE::SSE(std::string_view remote_url_, std::string_view endpoint_, int port_)
     remote = std::format("{}:{}{}", remote_url, port, endpoint);
     client = drogon::HttpClient::newHttpClient(remote_url, static_cast<uint16_t>(port));
     curl = curl_easy_init();
-    if(!curl){
+    if (!curl) {
         std::println("Error: Can't initialize curl");
     }
     curl_easy_setopt(curl, CURLOPT_URL, remote.c_str());
@@ -66,32 +81,37 @@ SSE::SSE(std::string_view remote_url_, std::string_view endpoint_, int port_)
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &data);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, sse_curl_callback);
 
-    connection_thread = std::thread([](CURL* curl){
-        curl_easy_perform(curl);
-        curl_easy_cleanup(curl);
-    }, curl);
+    connection_thread = std::thread(
+        [](CURL* curl) {
+            curl_easy_perform(curl);
+            curl_easy_cleanup(curl);
+        },
+        curl);
 }
-Json::Value SSE::getJson(){
+std::optional<Json::Value> SSE::getJson() {
     std::lock_guard<std::mutex> lock_(data.response_mtx);
+    if (data.responses.empty()) {
+        return std::nullopt;
+    }
     auto temp = std::move(data.responses.front());
     data.responses.pop();
     if (data.responses.size() > 0) {
         data.is_new_data_available.store(true);
-    }else{
+    } else {
         data.is_new_data_available.store(false);
     }
     return temp;
 }
 
-void SSE::pollImage(const std::string& _endpoint, std::string& img_buf,
-                     std::mutex& img_buf_mtx, std::atomic<bool>& is_new_data_available) {
+void SSE::pollImage(const std::string& _endpoint, std::string& img_buf, std::mutex& img_buf_mtx,
+                    std::atomic<bool>& is_new_data_available) {
     drogon::HttpRequestPtr img_request = drogon::HttpRequest::newHttpRequest();
     img_request->setMethod(drogon::HttpMethod::Get);
     img_request->setPath(_endpoint);
-    
+
     client->sendRequest(img_request,
-                        [&is_new_data_available, &img_buf, &img_buf_mtx](drogon::ReqResult reqRes,
-                                                           const drogon::HttpResponsePtr& resPtr) {
+                        [&is_new_data_available, &img_buf, &img_buf_mtx](
+                            drogon::ReqResult reqRes, const drogon::HttpResponsePtr& resPtr) {
                             if (reqRes == drogon::ReqResult::Ok) {
                                 std::lock_guard<std::mutex> _lock(img_buf_mtx);
                                 img_buf = resPtr->getBody();
@@ -101,7 +121,7 @@ void SSE::pollImage(const std::string& _endpoint, std::string& img_buf,
                             }
                         });
 }
-bool SSE::is_data_available() const noexcept{
+bool SSE::is_data_available() const noexcept {
     return data.is_new_data_available.load();
 }
 }  // namespace Sse
