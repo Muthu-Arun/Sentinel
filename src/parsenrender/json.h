@@ -43,7 +43,7 @@ public:
     HttpWindowWrapper(const HttpWindowWrapper&) = delete;
     // HttpWindowWrapper(HttpWindowWrapper&&) = default;
     HttpWindowWrapper(const std::string& label, const std::string& host,
-                      const std::string& endpoint, const int port);
+                      const std::string& endpoint, const int port, const std::string& connection_type);
     std::variant<std::monostate, HttpPoll::Poll, Sse::SSE> connection;
     std::optional<Window::Window> window;
 

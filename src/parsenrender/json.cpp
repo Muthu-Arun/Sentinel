@@ -108,8 +108,9 @@ void HttpWindowWrapper::addBarPlot(const std::string& _label, const std::vector<
 void HttpWindowWrapper::addButton(const std::string& _label, const std::string& endpoint,
                                   drogon::HttpMethod method) {
     if (std::holds_alternative<HttpPoll::Poll>(connection)) {
-        window->addWidget(_label, std::make_unique<Widgets::Button<>>(_label, endpoint, method,
-                                                                      std::get<HttpPoll::Poll>(connection).getButtonCallback()));
+        window->addWidget(_label, std::make_unique<Widgets::Button<>>(
+                                      _label, endpoint, method,
+                                      std::get<HttpPoll::Poll>(connection).getButtonCallback()));
     }
 }
 
@@ -158,7 +159,8 @@ HttpWindowWrapper::HttpWindowWrapper() : in_init_phase(true) {
     initFRs();
 }
 HttpWindowWrapper::HttpWindowWrapper(const std::string& label, const std::string& host,
-                                     const std::string& endpoint, const int port)
+                                     const std::string& endpoint, const int port,
+                                     const std::string& connection_type)
     : in_init_phase(false) {
     win_idx = window_count++;
     win_label = label;
@@ -166,7 +168,13 @@ HttpWindowWrapper::HttpWindowWrapper(const std::string& label, const std::string
     std::copy(host.begin(), host.end(), this->host.begin());
     std::copy(endpoint.begin(), endpoint.end(), this->host_endpoint.begin());
     this->port = port;
-    connection.emplace<HttpPoll::Poll>(this->host.data(), this->host_endpoint.data(), this->port);
+    // connection.emplace<HttpPoll::Poll>(this->host.data(), this->host_endpoint.data(),
+    // this->port);
+    if (connection_type == "sse") {
+        connection.emplace<Sse::SSE>(host, endpoint, port);
+    } else {
+        connection.emplace<HttpPoll::Poll>(host, endpoint, port);
+    }
     initFRs();
 }
 void HttpWindowWrapper::initFRs() {
@@ -262,6 +270,13 @@ void HttpWindowWrapper::parseJSON() {
         for (const std::string& id : json.getMemberNames()) {
             widget_updates_fr.at(json[id]["type"].asString())(id, json[id]);
         }
+    } else if (std::holds_alternative<Sse::SSE>(connection)) {
+        while (std::get<Sse::SSE>(connection).is_data_available()) {
+            auto json = std::get<Sse::SSE>(connection).getJson();
+            for (const std::string& id : json.getMemberNames()) {
+                widget_updates_fr.at(json[id]["type"].asString())(id, json[id]);
+            }
+        }
     }
 }
 
@@ -282,7 +297,11 @@ void HttpWindowWrapper::renderHeader() {
         ImGui::End();
         return;
     }
-    if (std::get<HttpPoll::Poll>(connection).is_data_available()) {
+    if (std::holds_alternative<Sse::SSE>(connection)) {
+        if (std::get<Sse::SSE>(connection).is_data_available()) {
+            parseJSON();
+        }
+    } else if (std::holds_alternative<HttpPoll::Poll>(connection) && std::get<HttpPoll::Poll>(connection).is_data_available()) {
         parseJSON();
         std::get<HttpPoll::Poll>(connection).parsed_data();  //  is_data_available -> false
     }

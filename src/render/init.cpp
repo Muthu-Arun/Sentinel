@@ -34,7 +34,8 @@ void init() {
             poll_windows.emplace_back(std::make_unique<ParseJson::HttpWindowWrapper>(
                 window, config.value()[window]["host"].asString(),
                 config.value()[window]["endpoint"].asString(),
-                config.value()[window]["port"].asInt()));
+                config.value()[window]["port"].asInt(),
+                config.value()[window]["connection"].asString()));
         }
     } else {
         std::println("Failed to parse JSON");

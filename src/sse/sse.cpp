@@ -13,6 +13,7 @@
 #include <mutex>
 #include <print>
 #include <thread>
+#include <utility>
 
 namespace Sse {
 
@@ -70,6 +71,18 @@ SSE::SSE(std::string_view remote_url_, std::string_view endpoint_, int port_)
         curl_easy_cleanup(curl);
     }, curl);
 }
+Json::Value SSE::getJson(){
+    std::lock_guard<std::mutex> lock_(data.response_mtx);
+    auto temp = std::move(data.responses.front());
+    data.responses.pop();
+    if (data.responses.size() > 0) {
+        data.is_new_data_available.store(true);
+    }else{
+        data.is_new_data_available.store(false);
+    }
+    return temp;
+}
+
 void SSE::pollImage(const std::string& _endpoint, std::string& img_buf,
                      std::mutex& img_buf_mtx, std::atomic<bool>& is_new_data_available) {
     drogon::HttpRequestPtr img_request = drogon::HttpRequest::newHttpRequest();
@@ -87,5 +100,8 @@ void SSE::pollImage(const std::string& _endpoint, std::string& img_buf,
                                 std::println("Image request failed");
                             }
                         });
+}
+bool SSE::is_data_available() const noexcept{
+    return data.is_new_data_available.load();
 }
 }  // namespace Sse

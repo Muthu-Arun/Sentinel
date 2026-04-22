@@ -37,6 +37,7 @@ public:
     SSE(std::string_view remote_url_, std::string_view endpoint_, int port = 80);
     bool is_data_available() const noexcept;
     void pollImage(const std::string& endpoint, std::string& img_buf, std::mutex& img_buf_mtx, std::atomic<bool>& is_new_data_available);
+    Json::Value getJson();
 
 private:
     std::thread connection_thread;
