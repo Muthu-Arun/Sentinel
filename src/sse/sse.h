@@ -13,7 +13,7 @@
 #include <string_view>
 namespace Sse {
 struct UserData {
-    std::queue<std::string> responses;
+    std::queue<Json::Value> responses;
     std::mutex response_mtx;
     std::string buffer;
     std::atomic<bool> is_new_data_available = 0;
@@ -30,10 +30,13 @@ protected:
     std::string remote_url, endpoint, remote;
     uint64_t port;
     CURL* curl;
+    // have a drogon client for standard http requests
+    drogon::HttpClientPtr client; 
 
 public:
     SSE(std::string_view remote_url_, std::string_view endpoint_, int port = 80);
     bool is_data_available() const noexcept;
+    void pollImage(const std::string& endpoint, std::string& img_buf, std::mutex& img_buf_mtx, std::atomic<bool>& is_new_data_available);
 
 private:
     std::thread connection_thread;

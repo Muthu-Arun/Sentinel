@@ -68,9 +68,9 @@ set(PARSING_SOURCES
     src/render/init.cpp)
 set(UTIL_SOURCES
     src/utils/util.cpp)
-
 set(SSE_SOURCES
     src/sse/sse.cpp)
+
 # 3. Create the Executable
 add_executable(sentinel src/main.cpp ${IMGUI_SOURCES} ${HTTP_SOURCES} ${WIDGET_SOURCES} ${WINDOW_SOURCES} ${PARSING_SOURCES} ${IM_PLOT_SOURCES} ${UTIL_SOURCES}
                                         ${SSE_SOURCES})
@@ -86,6 +86,7 @@ target_include_directories(sentinel PUBLIC
     ${SRC_DIR}/render
     ${SRC_DIR}/utils
     ${SRC_DIR}/parsenrender
+    ${SRC_DIR}/sse
     ${VENDOR_DIR}/implot
     ${VENDOR_DIR}/stb
 )

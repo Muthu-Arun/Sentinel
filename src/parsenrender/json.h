@@ -11,11 +11,14 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <variant>
 #include <vector>
 
 #include "poll.h"
 #include "widget.h"
 #include "window.h"
+#include "sse.h"
+
 namespace ParseJson {
 
 class HttpWindowWrapper {
@@ -41,7 +44,7 @@ public:
     // HttpWindowWrapper(HttpWindowWrapper&&) = default;
     HttpWindowWrapper(const std::string& label, const std::string& host,
                       const std::string& endpoint, const int port);
-    std::optional<HttpPoll::Poll> poll;
+    std::variant<std::monostate, HttpPoll::Poll, Sse::SSE> connection;
     std::optional<Window::Window> window;
 
     void addText(const std::string& _label, std::string_view data);

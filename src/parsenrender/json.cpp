@@ -10,9 +10,11 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "imgui.h"
+#include "poll.h"
 #include "widget.h"
 #include "window.h"
 namespace ParseJson {
@@ -105,8 +107,10 @@ void HttpWindowWrapper::addBarPlot(const std::string& _label, const std::vector<
 
 void HttpWindowWrapper::addButton(const std::string& _label, const std::string& endpoint,
                                   drogon::HttpMethod method) {
-    window->addWidget(_label, std::make_unique<Widgets::Button<>>(_label, endpoint, method,
-                                                                  poll->getButtonCallback()));
+    if (std::holds_alternative<HttpPoll::Poll>(connection)) {
+        window->addWidget(_label, std::make_unique<Widgets::Button<>>(_label, endpoint, method,
+                                                                      std::get<HttpPoll::Poll>(connection).getButtonCallback()));
+    }
 }
 
 void HttpWindowWrapper::addImage(const std::string& _label, const std::string& endpoint) {
@@ -115,7 +119,11 @@ void HttpWindowWrapper::addImage(const std::string& _label, const std::string& e
     window->addWidget(_label,
                       std::make_unique<Widgets::Image<std::string>>(
                           _label, map_string[_label], network_buffer_mtx[_label], endpoint));
-    poll->pollImage(endpoint, map_string[_label], network_buffer_mtx[_label], window->widgets.at(_label)->is_data_available);
+    if (std::holds_alternative<HttpPoll::Poll>(connection)) {
+        std::get<HttpPoll::Poll>(connection)
+            .pollImage(endpoint, map_string[_label], network_buffer_mtx[_label],
+                       window->widgets.at(_label)->is_data_available);
+    }
 }
 /*
 void parseDynamicJson(const Json::Value& root) {
@@ -146,6 +154,7 @@ HttpWindowWrapper::HttpWindowWrapper() : in_init_phase(true) {
     window.emplace(win_label);
     // host.fill('\0');
     // host_endpoint.fill('\0');
+    connection.emplace<std::monostate>();
     initFRs();
 }
 HttpWindowWrapper::HttpWindowWrapper(const std::string& label, const std::string& host,
@@ -157,7 +166,7 @@ HttpWindowWrapper::HttpWindowWrapper(const std::string& label, const std::string
     std::copy(host.begin(), host.end(), this->host.begin());
     std::copy(endpoint.begin(), endpoint.end(), this->host_endpoint.begin());
     this->port = port;
-    poll.emplace(this->host.data(), this->host_endpoint.data(), this->port);
+    connection.emplace<HttpPoll::Poll>(this->host.data(), this->host_endpoint.data(), this->port);
     initFRs();
 }
 void HttpWindowWrapper::initFRs() {
@@ -230,8 +239,12 @@ void HttpWindowWrapper::initFRs() {
         if (params.isMember("endpoint")) {
             if (window->isWidgetPresent(label_)) {
                 std::string endpoint = params["endpoint"].asString();
-                poll->pollImage(endpoint, map_string[label_], network_buffer_mtx[label_],
-                                window->widgets.at(label_)->is_data_available);
+                if (std::holds_alternative<HttpPoll::Poll>(connection)) {
+                    std::get<HttpPoll::Poll>(connection)
+                        .pollImage(endpoint, map_string[label_], network_buffer_mtx[label_],
+                                   window->widgets.at(label_)->is_data_available);
+                }
+                // TODO Need to implement for SSE later
             } else {
                 std::string endpoint = params["endpoint"].asString();
                 addImage(label_, endpoint);
@@ -240,12 +253,15 @@ void HttpWindowWrapper::initFRs() {
     };
 }
 void HttpWindowWrapper::parseJSON() {
-    auto response = poll->getJSONBodyPtr();
-    if (!response.first) return;
-    std::lock_guard<std::mutex> _lock(*(response.second));
-    const Json::Value& json = *(response.first);
-    for (const std::string& id : json.getMemberNames()) {
-        widget_updates_fr.at(json[id]["type"].asString())(id, json[id]);
+    if (std::holds_alternative<HttpPoll::Poll>(connection)) {
+        auto response = std::get<HttpPoll::Poll>(connection).getJSONBodyPtr();
+        if (!response.first)
+            return;
+        std::lock_guard<std::mutex> _lock(*(response.second));
+        const Json::Value& json = *(response.first);
+        for (const std::string& id : json.getMemberNames()) {
+            widget_updates_fr.at(json[id]["type"].asString())(id, json[id]);
+        }
     }
 }
 
@@ -256,19 +272,19 @@ void HttpWindowWrapper::renderHeader() {
         ImGui::InputText("Host Endpoint", host_endpoint.data(), 250);
         ImGui::InputScalar("Port", ImGuiDataType_U64, &port);
         if (ImGui::Button("Enter Host URL")) {
-            poll.emplace(host.data(), host_endpoint.data(), port);
+            connection.emplace<HttpPoll::Poll>(host.data(), host_endpoint.data(), port);
             in_init_phase = false;
             ImGui::End();
             return;
         }
     }
-    if (!poll) {
+    if (std::holds_alternative<std::monostate>(connection)) {
         ImGui::End();
         return;
     }
-    if (poll->is_data_available()) {
+    if (std::get<HttpPoll::Poll>(connection).is_data_available()) {
         parseJSON();
-        poll->parsed_data(); //  is_data_available -> false
+        std::get<HttpPoll::Poll>(connection).parsed_data();  //  is_data_available -> false
     }
     window->render();
     ImGui::End();

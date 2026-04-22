@@ -8,6 +8,7 @@
 #include <json/version.h>
 
 #include <atomic>
+#include <cstdint>
 #include <format>
 #include <mutex>
 #include <print>
@@ -54,6 +55,7 @@ Json::Value extractPayload(std::string_view buffer) noexcept {
 SSE::SSE(std::string_view remote_url_, std::string_view endpoint_, int port_)
     : remote_url(remote_url_), endpoint(endpoint_), port(port_) {
     remote = std::format("{}:{}{}", remote_url, port, endpoint);
+    client = drogon::HttpClient::newHttpClient(remote_url, static_cast<uint16_t>(port));
     curl = curl_easy_init();
     if(!curl){
         std::println("Error: Can't initialize curl");
@@ -67,5 +69,23 @@ SSE::SSE(std::string_view remote_url_, std::string_view endpoint_, int port_)
         curl_easy_perform(curl);
         curl_easy_cleanup(curl);
     }, curl);
+}
+void SSE::pollImage(const std::string& _endpoint, std::string& img_buf,
+                     std::mutex& img_buf_mtx, std::atomic<bool>& is_new_data_available) {
+    drogon::HttpRequestPtr img_request = drogon::HttpRequest::newHttpRequest();
+    img_request->setMethod(drogon::HttpMethod::Get);
+    img_request->setPath(_endpoint);
+    
+    client->sendRequest(img_request,
+                        [&is_new_data_available, &img_buf, &img_buf_mtx](drogon::ReqResult reqRes,
+                                                           const drogon::HttpResponsePtr& resPtr) {
+                            if (reqRes == drogon::ReqResult::Ok) {
+                                std::lock_guard<std::mutex> _lock(img_buf_mtx);
+                                img_buf = resPtr->getBody();
+                                is_new_data_available.store(true);
+                            } else {
+                                std::println("Image request failed");
+                            }
+                        });
 }
 }  // namespace Sse
