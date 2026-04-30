@@ -38,6 +38,7 @@ public:
     bool is_data_available() const noexcept;
     void pollImage(const std::string& endpoint, std::string& img_buf, std::mutex& img_buf_mtx, std::atomic<bool>& is_new_data_available);
     std::optional<Json::Value> getJson();
+    ~SSE();
 
 private:
     std::thread connection_thread;

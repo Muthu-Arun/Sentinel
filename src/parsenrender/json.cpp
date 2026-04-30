@@ -259,6 +259,24 @@ void HttpWindowWrapper::initFRs() {
             }
         }
     };
+    widget_updates_fr["remove"] = [this](const std::string& label_, const Json::Value& params) {
+        if (!params.isArray()) [[unlikely]] {
+            return;
+        }
+        for(auto& elem : params["target"]){
+            auto key = elem.asString();
+            window->removeWidget(key);
+            network_buffer_mtx.erase(key);
+            // Since keys are unique instead of checking, just erasing in all of them
+            // As these buffers mostlikey be removed as the json parsing and updating will probably remain single threaded
+            map_float.erase(key);
+            map_int.erase(key);
+            map_string.erase(key);
+            map_vector_double.erase(key);
+            map_vector_string.erase(key);
+        }
+        
+    };
 }
 void HttpWindowWrapper::parseJSON() {
     if (std::holds_alternative<HttpPoll::Poll>(connection)) {

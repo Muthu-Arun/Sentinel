@@ -41,15 +41,15 @@ size_t sse_curl_callback(char* ptr, size_t size, size_t nmemb, void* userdata) {
             std::string actualData = eventPayload.substr(dataPos + dataPrefix.length());
             std::println("received sse data: {}", actualData);
 
-            // 1. Setup the parser
+            //  Setup the parser
             Json::Value parsedJson;
             Json::CharReaderBuilder builder;
             std::string errs;
             std::istringstream stream(actualData);
 
-            // 2. Parse the string into an object right here
+            //  Parse the string into an object right here
             if (Json::parseFromStream(builder, stream, &parsedJson, &errs)) {
-                // 3. Emplace the PARSED OBJECT, not the string
+                //  Emplace the PARSED OBJECT, not the string
                 std::lock_guard<std::mutex> lock_(dataStruct->response_mtx);
                 dataStruct->responses.emplace(std::move(parsedJson));
                 dataStruct->is_new_data_available.store(true, std::memory_order_relaxed);
@@ -87,6 +87,10 @@ SSE::SSE(std::string_view remote_url_, std::string_view endpoint_, int port_)
             curl_easy_cleanup(curl);
         },
         curl);
+}
+
+SSE::~SSE(){
+    // need change to curl_multi to close the connection
 }
 std::optional<Json::Value> SSE::getJson() {
     std::lock_guard<std::mutex> lock_(data.response_mtx);

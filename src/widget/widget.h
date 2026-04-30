@@ -32,6 +32,9 @@ void init();
 void cleanup();
 
 // Data expressed by the widget is owned by it to create a double buffer
+
+// these buffers with atomics & mutexes will mostlikey be removed as the json parsing and updating will probably remain
+// single threaded
 class Widget {
 public:
     std::string label;

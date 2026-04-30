@@ -13,13 +13,14 @@
 #include "poll.h"
 #include "widget.h"
 #include "init.h"
-int main(int, char**) {
+
+int main() {
     // 1. Setup GLFW
     HttpPoll::init();
     if (!glfwInit())
         return 1;
 
-    // Decide GL+GLSL versions
+    // GL+GLSL versions
     const char* glsl_version = "#version 130";
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
@@ -35,9 +36,6 @@ int main(int, char**) {
     // IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();  // (void)io;
-
-
-    // ... Inside your initialization code (where you setup ImGui) ...
 
     // Enable anti-aliasing (usually on by default, but good to ensure)
     io.Fonts->Flags |= ImFontAtlasFlags_NoBakedLines;

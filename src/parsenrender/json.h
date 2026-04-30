@@ -15,9 +15,9 @@
 #include <vector>
 
 #include "poll.h"
+#include "sse.h"
 #include "widget.h"
 #include "window.h"
-#include "sse.h"
 
 namespace ParseJson {
 
@@ -43,7 +43,8 @@ public:
     HttpWindowWrapper(const HttpWindowWrapper&) = delete;
     // HttpWindowWrapper(HttpWindowWrapper&&) = default;
     HttpWindowWrapper(const std::string& label, const std::string& host,
-                      const std::string& endpoint, const int port, const std::string& connection_type);
+                      const std::string& endpoint, const int port,
+                      const std::string& connection_type);
     std::variant<std::monostate, HttpPoll::Poll, Sse::SSE> connection;
     std::optional<Window::Window> window;
 
