@@ -32,7 +32,6 @@ int main() {
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);  // Enable vsync
 
-    // 2. Setup Dear ImGui context
     // IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();  // (void)io;
@@ -46,9 +45,9 @@ int main() {
     config.OversampleV = 1;
     config.PixelSnapH = true;
 
-    // 1. Load the Regular Font (Size 16.0f)
+    // Load the Regular Font (Size 16.0f)
 
-    // 2. Load the Bold Font (Size 16.0f)
+    // Load the Bold Font (Size 16.0f)
     Widgets::g_FontBold = io.Fonts->AddFontFromFileTTF("fonts/Roboto-Bold.ttf", 20.0f, &config);
 
     Widgets::g_FontRegular = io.Fonts->AddFontFromFileTTF("fonts/Roboto-Regular.ttf", 16.0f, &config);
@@ -67,7 +66,6 @@ int main() {
     // win.initFRs();
     // Window::window win("hello");
     // win.addWidget("win1", std::make_unique<Widget::text<>>("sample"));
-    // 3. Main loop
     MainWindow::init();
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();

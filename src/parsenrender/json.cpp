@@ -4,9 +4,11 @@
 #include <json/value.h>
 
 #include <algorithm>
+#include <exception>
 #include <format>
 #include <memory>
 #include <mutex>
+#include <print>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -263,37 +265,49 @@ void HttpWindowWrapper::initFRs() {
         if (!params.isArray()) [[unlikely]] {
             return;
         }
-        for(auto& elem : params["target"]){
+        for (const auto& elem : params["target"]) {
             auto key = elem.asString();
             window->removeWidget(key);
             network_buffer_mtx.erase(key);
             // Since keys are unique instead of checking, just erasing in all of them
-            // As these buffers mostlikey be removed as the json parsing and updating will probably remain single threaded
+            // As these buffers mostlikey be removed as the json parsing and updating will probably
+            // remain single threaded
             map_float.erase(key);
             map_int.erase(key);
             map_string.erase(key);
             map_vector_double.erase(key);
             map_vector_string.erase(key);
         }
-        
     };
 }
 void HttpWindowWrapper::parseJSON() {
     if (std::holds_alternative<HttpPoll::Poll>(connection)) {
         auto response = std::get<HttpPoll::Poll>(connection).getJSONBodyPtr();
+
         if (!response.first)
             return;
+
         std::lock_guard<std::mutex> _lock(*(response.second));
         const Json::Value& json = *(response.first);
-        for (const std::string& id : json.getMemberNames()) {
-            widget_updates_fr.at(json[id]["type"].asString())(id, json[id]);
+        try {
+            for (const std::string& id : json.getMemberNames()) {
+                widget_updates_fr.at(json[id]["type"].asString())(id, json[id]);
+            }
+        } catch (const std::exception& e) {
+            std::println("Exception while inferring widget type, in Http poll");
         }
     } else if (std::holds_alternative<Sse::SSE>(connection)) {
         while (std::get<Sse::SSE>(connection).is_data_available()) {
             auto json = std::get<Sse::SSE>(connection).getJson();
             if (json && json.value().isObject()) {
                 for (const std::string& id : json.value().getMemberNames()) {
-                    widget_updates_fr.at(json.value()[id]["type"].asString())(id, json.value()[id]);
+                    try {
+                        widget_updates_fr.at(json.value()[id]["type"].asString())(id,
+                                                                                  json.value()[id]);
+
+                    } catch (const std::exception& e) {
+                        std::println("Exception while inferring widget type, in SSE");
+                    }
                 }
             }
         }
