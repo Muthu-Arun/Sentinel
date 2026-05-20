@@ -10,10 +10,10 @@
 #include "implot.h"
 
 namespace Widgets {
-void init(){
+void init() {
     plot_context = ImPlot::CreateContext();
 }
-void cleanup(){
+void cleanup() {
     ImPlot::DestroyContext(plot_context);
 }
 Widget::Widget(std::string_view _label) : label(_label) {}
@@ -26,11 +26,18 @@ TextInput::TextInput(std::string_view label, const std::string& src, std::mutex&
       src_mtx(src_mtx),
       string_capacity(string_capacity),
       data(string_capacity, ' ') {}
+
 TextInput::~TextInput() {}
+
+void Widget::makeInline(float offset, float spacing) {
+    ImGui::SameLine(offset, spacing);
+}
+
 void TextInput::draw() {
     copyFromSource();
     ImGui::InputText(label.c_str(), data.data(), string_capacity);
 }
+
 void TextInput::copyFromSource() {
     if (is_data_available.load()) {
         std::lock_guard<std::mutex> lock(src_mtx);

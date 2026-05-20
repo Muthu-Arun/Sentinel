@@ -279,6 +279,19 @@ void HttpWindowWrapper::initFRs() {
             map_vector_string.erase(key);
         }
     };
+    widget_updates_fr["inline"] = [this](const std::string& label_, const Json::Value& params) {
+        std::println("In Inline widget construction, parent - {}", label_);
+        try {
+            const auto& widgets = params["widgets"];
+            for (const auto& widget : widgets.getMemberNames()) {
+                widget_updates_fr.at(widgets[widget]["type"].asString())(widget, widgets[widget]);
+                window->widgets.at(widget)->isInline = true;
+                std::println("Inline widget {} constructed with parent {}", widget, label_);
+            }
+        } catch (const std::exception& e) {
+            std::println("Exception while constructing inline widgets");
+        }
+    };
 }
 void HttpWindowWrapper::parseJSON() {
     if (std::holds_alternative<HttpPoll::Poll>(connection)) {

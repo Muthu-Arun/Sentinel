@@ -33,17 +33,20 @@ void cleanup();
 
 // Data expressed by the widget is owned by it to create a double buffer
 
-// these buffers with atomics & mutexes will mostlikey be removed as the json parsing and updating will probably remain
-// single threaded
+// these buffers with atomics & mutexes will mostlikey be removed as the json parsing and updating
+// will probably remain single threaded
 class Widget {
 public:
     std::string label;
-    // std::mutex data_mtx;
     std::atomic<bool> is_data_available = 0;
+    bool isInline = false;
+    // std::mutex data_mtx;
+
     Widget(std::string_view _label);
+
     virtual void draw() = 0;
-    // virtual void action();
-    // virtual void copyFromSource() = 0;
+    virtual void makeInline(float offset = 0.0f, float spacing = 0.0f);
+
     virtual ~Widget();
 };
 template <typename _data_type>
@@ -63,6 +66,9 @@ public:
         // TODO
         // float window_width = ImGui::GetWindowWidth();
         // float window_height = ImGui::GetWindowHeight();
+        if (isInline) {
+            makeInline();
+        }
         copyFromSource();
         switch (ptype) {
             case type::Line:
@@ -132,6 +138,10 @@ public:
         : Widget(_label), src(_src), src_label(_src_label), src_mtx(_src_mtx) {}
     void draw() override {
         copyFromSource();
+
+        if (isInline) {
+            makeInline();
+        }
         if (ImPlot::BeginPlot(label.c_str())) {
             // ImPlot::SetupAxes("Category", "Value", ImPlotAxisFlags_AutoFit,
             // ImPlotAxisFlags_AutoFit); Utils::Log::logVec(src_label);
@@ -189,6 +199,9 @@ public:
         : Widget(_label), endpoint(_endpoint), method(_method), call_on_event(_call_on_event) {}
 
     void draw() override {
+        if (isInline) {
+            makeInline();
+        }
         if (ImGui::Button(label.c_str())) {
             std::cerr << "Executing Button Event\n";
             // call_on_event(endpoint, drogon::HttpMethod::Get, body);
@@ -246,6 +259,9 @@ public:
         : Widget(_label), range{min, max}, data(_data), coordinates(coordn) {}
 
     void draw() override {
+        if (isInline) {
+            makeInline();
+        }
         // INIT
         ImVec2 pos = ImGui::GetCursorScreenPos();  // Top-left corner of the widget
         ImVec2 center = ImVec2(pos.x + coordinates.radius, pos.y + coordinates.radius);
@@ -306,6 +322,9 @@ public:
         : Widget(_label), endpoint(_endpoint), src(_src), src_mtx(_src_mtx) {}
 
     void draw() override {
+        if (isInline) {
+            makeInline();
+        }
         copyFromSource();
         if (data.size() && texture) [[likely]] {
             if (texture) [[likely]] {
