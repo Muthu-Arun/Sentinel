@@ -54,6 +54,10 @@ sudo apt install libstdc++-14-dev clang-20
 git clone https://github.com/drogonframework/drogon.git
 sudo apt install libjsoncpp-dev uuid-dev zlib1g-dev libssl-dev
 
+#install curl deps for SSE
+
+sudo apt install libcurl4-openssl-dev libcurl4
+
 cd drogon && sudo ./build.sh && cd ..
 # Clone the repository
 git clone https://github.com/Muthu-Arun/Sentinel.git
