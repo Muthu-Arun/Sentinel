@@ -21,11 +21,10 @@
 
 namespace ParseJson {
 
+    using containerType = std::variant<std::atomic<int>, std::atomic<float>, std::string>;
 class HttpWindowWrapper {
 protected:
-    std::unordered_map<std::string, std::atomic<int>> map_int;
-    std::unordered_map<std::string, std::atomic<float>> map_float;
-    std::unordered_map<std::string, std::string> map_string;
+    std::unordered_map<std::string, containerType> buffer_container;
     std::unordered_map<std::string, std::mutex> network_buffer_mtx;
     std::unordered_map<std::string, std::function<void(const std::string& id, const Json::Value&)>>
         widget_updates_fr;

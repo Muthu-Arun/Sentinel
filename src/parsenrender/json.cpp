@@ -4,6 +4,7 @@
 #include <json/value.h>
 
 #include <algorithm>
+#include <atomic>
 #include <exception>
 #include <format>
 #include <memory>
@@ -71,10 +72,11 @@ BarPlot:
 */
 
 void HttpWindowWrapper::addText(const std::string& _label, std::string_view data) {
-    map_string[_label] = data;  // IG using [] oprator is not a problem here as if there aren't any
+    buffer_container[_label].emplace<std::string>(data);
+    // map_string[_label] = data;  // IG using [] oprator is not a problem here as if there aren't any
                                 // we need to create one
     network_buffer_mtx[_label];
-    window->addWidget(_label, std::make_unique<Widgets::Text<>>(_label, map_string[_label],
+    window->addWidget(_label, std::make_unique<Widgets::Text<>>(_label, std::get<std::string>(buffer_container[_label]),
                                                                 network_buffer_mtx[_label]));
 }
 /*
@@ -87,15 +89,15 @@ void HttpWindowWrapper::addRadialGauge(const std::string& _label, int data, int 
 */
 void HttpWindowWrapper::addRadialGauge(const std::string& _label, float data, float min,
                                        float max) {
-    map_float[_label] = data;
+    buffer_container[_label].emplace<std::atomic<float>>(data);
     window->addWidget(_label, std::make_unique<Widgets::RadialGauge<float>>(_label, min, max,
-                                                                            map_float.at(_label)));
+                                                                            std::get<std::atomic<float>>(buffer_container[_label])));
 }
 void HttpWindowWrapper::addPlot(const std::string& _label, float data,
                                 Widgets::Plot<float>::type ptype) {
-    map_float[_label] = data;
+    buffer_container[_label].emplace<std::atomic<float>>(data);
     window->addWidget(_label,
-                      std::make_unique<Widgets::Plot<float>>(_label, ptype, map_float[_label]));
+                      std::make_unique<Widgets::Plot<float>>(_label, ptype, std::get<std::atomic<float>>(buffer_container[_label])));
 }
 void HttpWindowWrapper::addBarPlot(const std::string& _label, const std::vector<double>& data,
                                    const std::vector<std::string>& format_labels) {
@@ -117,14 +119,14 @@ void HttpWindowWrapper::addButton(const std::string& _label, const std::string& 
 }
 
 void HttpWindowWrapper::addImage(const std::string& _label, const std::string& endpoint) {
-    map_string[_label];
+    buffer_container[_label].emplace<std::string>(endpoint);
     network_buffer_mtx[_label];
     window->addWidget(_label,
                       std::make_unique<Widgets::Image<std::string>>(
-                          _label, map_string[_label], network_buffer_mtx[_label], endpoint));
+                          _label, std::get<std::string>(buffer_container[_label]), network_buffer_mtx[_label], endpoint));
     if (std::holds_alternative<HttpPoll::Poll>(connection)) {
         std::get<HttpPoll::Poll>(connection)
-            .pollImage(endpoint, map_string[_label], network_buffer_mtx[_label],
+            .pollImage(endpoint, std::get<std::string>(buffer_container[_label]), network_buffer_mtx[_label],
                        window->widgets.at(_label)->is_data_available);
     }
 }
@@ -185,7 +187,8 @@ void HttpWindowWrapper::initFRs() {
             addText(label_, params["data"].asString());
         } else [[likely]] {
             std::lock_guard<std::mutex> lock_(network_buffer_mtx[label_]);
-            map_string[label_] = params["data"].asString();
+            // map_string[label_] = params["data"].asString();
+            std::get<std::string>(buffer_container[label_]) = params["data"].asString();
             window->widgets.at(label_)->is_data_available.store(true);
         }
     };
@@ -195,7 +198,8 @@ void HttpWindowWrapper::initFRs() {
             addRadialGauge(label_, params["data"].asFloat(), params["min"].asFloat(),
                            params["max"].asFloat());
         } else [[likely]] {
-            map_float[label_] = params["data"].asFloat();
+            // map_float[label_] = params["data"].asFloat();
+            std::get<std::atomic<float>>(buffer_container[label_]).store(params["data"].asFloat());
             window->widgets.at(label_)->is_data_available.store(true);
         }
     };
@@ -203,7 +207,8 @@ void HttpWindowWrapper::initFRs() {
         if (!window->isWidgetPresent(label_)) {
             addPlot(label_, params["data"].asFloat());
         } else [[likely]] {
-            map_float[label_] = params["data"].asFloat();
+            // map_float[label_] = params["data"].asFloat();
+            std::get<std::atomic<float>>(buffer_container[label_]).store(params["data"].asFloat());
             window->widgets.at(label_)->is_data_available.store(true);
         }
     };
@@ -251,7 +256,7 @@ void HttpWindowWrapper::initFRs() {
                 std::string endpoint = params["endpoint"].asString();
                 if (std::holds_alternative<HttpPoll::Poll>(connection)) {
                     std::get<HttpPoll::Poll>(connection)
-                        .pollImage(endpoint, map_string[label_], network_buffer_mtx[label_],
+                        .pollImage(endpoint, std::get<std::string>(buffer_container[label_]), network_buffer_mtx[label_],
                                    window->widgets.at(label_)->is_data_available);
                 }
                 // TODO Need to implement for SSE later
@@ -272,9 +277,10 @@ void HttpWindowWrapper::initFRs() {
             // Since keys are unique instead of checking, just erasing in all of them
             // As these buffers mostlikey be removed as the json parsing and updating will probably
             // remain single threaded
-            map_float.erase(key);
-            map_int.erase(key);
-            map_string.erase(key);
+            // map_float.erase(key);
+            // map_int.erase(key);
+            // map_string.erase(key);
+            buffer_container.erase(key);
             map_vector_double.erase(key);
             map_vector_string.erase(key);
         }
