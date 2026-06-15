@@ -45,4 +45,45 @@ void TextInput::copyFromSource() {
         is_data_available.store(false);
     }
 }
+Table::Table(std::string_view _label, std::vector<std::string>&& _header,
+             const std::vector<tableRowContainer>& _src, std::mutex& _src_mtx)
+    : Widget(_label), header(std::move(_header)), src(_src), src_mtx(_src_mtx) {
+    ncol = header.size();
+    rows.emplace_back();
+}
+void Table::copyFromSource() {
+    std::lock_guard<std::mutex> _lock(src_mtx);
+    rows.emplace_back(src);
+}
+void Table::draw() {
+    if (is_data_available.load()) {
+        copyFromSource();
+    }
+    if (!ImGui::BeginTable(label.c_str(), ncol)) [[unlikely]] {
+        return;
+    }
+    for (const std::string& hc : header) {
+        ImGui::TableSetupColumn(hc.c_str());
+    }
+    ImGui::TableHeadersRow();
+    for (const auto& row : rows) {
+        ImGui::TableNextRow();
+        for (const auto& col : row) {
+            std::visit(
+                [](const auto& val) {
+                    using type = std::decay_t<decltype(val)>;
+                    ImGui::TableNextColumn();
+                    if constexpr (std::is_same_v<type, int>) {
+                        ImGui::Text("%d", val);
+                    } else if constexpr (std::is_same_v<type, float>) {
+                        ImGui::Text("%f", val);
+                    } else if constexpr (std::is_same_v<type, std::string>) {
+                        ImGui::Text("%s", val.c_str());
+                    }
+                },
+                col);
+        }
+    }
+    ImGui::EndTable();
+}
 }  // namespace Widgets

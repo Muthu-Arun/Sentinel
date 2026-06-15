@@ -30,6 +30,7 @@ protected:
         widget_updates_fr;
     std::unordered_map<std::string, std::vector<double>> map_vector_double;
     std::unordered_map<std::string, std::vector<std::string>> map_vector_string;
+    std::unordered_map<std::string, std::variant<std::vector<Widgets::Table::tableRowContainer>, std::vector<double>, std::vector<std::string>>> vector_buffer_container;
     std::array<char, 250> host{}, host_endpoint{};
     uint64_t port = 80;
     bool in_init_phase;
@@ -60,6 +61,7 @@ public:
                    drogon::HttpMethod method);
 
     void addImage(const std::string& _label, const std::string& endpoint);
+    void addTable(const std::string& _label, std::vector<std::string>&& header, std::vector<Widgets::Table::tableRowContainer>&& rows = {});
 
     void renderHeader();
     void parseJSON();

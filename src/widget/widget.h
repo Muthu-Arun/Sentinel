@@ -350,52 +350,25 @@ public:
         }
     }
 };
-template <typename T>
 class Table : public Widget {
 public:
     using tableRowContainer = std::variant<int, float, std::string>;
     int ncol = 0;
+
 protected:
     // Preserve the column types for future use
     std::vector<std::string> header;
+    const std::vector<tableRowContainer>& src;
+    std::mutex& src_mtx;
     std::vector<std::vector<tableRowContainer>> rows;
 
 public:
     // Table(std::string_view _label, const std::vector<tableRowContainer>& _row) : Widget(_label) {
     //     rows.emplace_back(_row);
     // }
-    Table(std::string_view _label, std::vector<tableRowContainer>&& _row,
-        std::vector<std::string>&& _header) : Widget(_label) , header(std::move(_header)){
-        ncol = _row.size();
-        rows.emplace_back(std::move(_row));
-    }
-    void draw() override{
-        if(!ImGui::BeginTable(label, ncol)){
-            return;
-        }
-        for(const std::string& hc: header){
-            ImGui::TableSetupColumn(hc.c_str());
-        }
-        ImGui::TableHeadersRow();
-        for(const auto& row : rows){
-            ImGui::TableNextRow();
-            for(const auto& col : row){
-                std::visit([](const auto& val){
-                    using type = std::decay_t<decltype(val)>;
-                    ImGui::TableNextColumn();
-                    if constexpr (std::is_same_v<type, int>) {
-                        ImGui::Text("%d", val);
-                    }else if constexpr (std::is_same_v<type, float>) {
-                        ImGui::Text("%f", val);
-                    }else if constexpr (std::is_same_v<type, std::string>) {
-                        ImGui::Text("%s", val.c_str());
-                    }
-                }, col);
-
-            }
-
-        }
-        ImGui::EndTable();
-    }
+    Table(std::string_view _label, std::vector<std::string>&& _header,
+          const std::vector<tableRowContainer>& _src, std::mutex& _src_mtx);
+    void draw() override;
+    void copyFromSource();
 };
 }  // namespace Widgets

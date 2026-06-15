@@ -64,20 +64,27 @@ Plot:
 RadialGauge:
     type = radial_gauge
     data = floating point value
+    min = float
+    max = float
 
 BarPlot:
     type = bar_plot
     data = array of doubles
     data_labels = array of strings
+Table:
+    type = table
+    data = array of arrays subarrays matching the row width
+    header = array of string (header names)
 */
 
 void HttpWindowWrapper::addText(const std::string& _label, std::string_view data) {
     buffer_container[_label].emplace<std::string>(data);
-    // map_string[_label] = data;  // IG using [] oprator is not a problem here as if there aren't any
-                                // we need to create one
+    // map_string[_label] = data;  // IG using [] oprator is not a problem here as if there aren't
+    // any we need to create one
     network_buffer_mtx[_label];
-    window->addWidget(_label, std::make_unique<Widgets::Text<>>(_label, std::get<std::string>(buffer_container[_label]),
-                                                                network_buffer_mtx[_label]));
+    window->addWidget(_label, std::make_unique<Widgets::Text<>>(
+                                  _label, std::get<std::string>(buffer_container[_label]),
+                                  network_buffer_mtx[_label]));
 }
 /*
 void HttpWindowWrapper::addRadialGauge(const std::string& _label, int data, int min,
@@ -90,14 +97,16 @@ void HttpWindowWrapper::addRadialGauge(const std::string& _label, int data, int 
 void HttpWindowWrapper::addRadialGauge(const std::string& _label, float data, float min,
                                        float max) {
     buffer_container[_label].emplace<std::atomic<float>>(data);
-    window->addWidget(_label, std::make_unique<Widgets::RadialGauge<float>>(_label, min, max,
-                                                                            std::get<std::atomic<float>>(buffer_container[_label])));
+    window->addWidget(
+        _label, std::make_unique<Widgets::RadialGauge<float>>(
+                    _label, min, max, std::get<std::atomic<float>>(buffer_container[_label])));
 }
 void HttpWindowWrapper::addPlot(const std::string& _label, float data,
                                 Widgets::Plot<float>::type ptype) {
     buffer_container[_label].emplace<std::atomic<float>>(data);
     window->addWidget(_label,
-                      std::make_unique<Widgets::Plot<float>>(_label, ptype, std::get<std::atomic<float>>(buffer_container[_label])));
+                      std::make_unique<Widgets::Plot<float>>(
+                          _label, ptype, std::get<std::atomic<float>>(buffer_container[_label])));
 }
 void HttpWindowWrapper::addBarPlot(const std::string& _label, const std::vector<double>& data,
                                    const std::vector<std::string>& format_labels) {
@@ -121,14 +130,25 @@ void HttpWindowWrapper::addButton(const std::string& _label, const std::string& 
 void HttpWindowWrapper::addImage(const std::string& _label, const std::string& endpoint) {
     buffer_container[_label].emplace<std::string>(endpoint);
     network_buffer_mtx[_label];
-    window->addWidget(_label,
-                      std::make_unique<Widgets::Image<std::string>>(
-                          _label, std::get<std::string>(buffer_container[_label]), network_buffer_mtx[_label], endpoint));
+    window->addWidget(_label, std::make_unique<Widgets::Image<std::string>>(
+                                  _label, std::get<std::string>(buffer_container[_label]),
+                                  network_buffer_mtx[_label], endpoint));
     if (std::holds_alternative<HttpPoll::Poll>(connection)) {
         std::get<HttpPoll::Poll>(connection)
-            .pollImage(endpoint, std::get<std::string>(buffer_container[_label]), network_buffer_mtx[_label],
-                       window->widgets.at(_label)->is_data_available);
+            .pollImage(endpoint, std::get<std::string>(buffer_container[_label]),
+                       network_buffer_mtx[_label], window->widgets.at(_label)->is_data_available);
     }
+}
+void HttpWindowWrapper::addTable(const std::string& _label, std::vector<std::string>&& header,
+                                 std::vector<Widgets::Table::tableRowContainer>&& rows) {
+    network_buffer_mtx[_label];
+    vector_buffer_container[_label].emplace<std::vector<Widgets::Table::tableRowContainer>>(
+        std::move(rows));
+    window->addWidget(_label, std::make_unique<Widgets::Table>(
+                                  _label, std::move(header),
+                                  std::get<std::vector<Widgets::Table::tableRowContainer>>(
+                                      vector_buffer_container[_label]),
+                                  network_buffer_mtx[_label]));
 }
 /*
 void parseDynamicJson(const Json::Value& root) {
@@ -224,7 +244,7 @@ void HttpWindowWrapper::initFRs() {
                     data_label_vec.push_back(elem.asString());
                 }
             } else {
-                std::cerr << "Values Expected as Arrays for bar_plot\n";
+                std::println("Values Expected as Arrays for bar_plot");
             }
         }
         if (window->isWidgetPresent(label_)) {
@@ -256,7 +276,8 @@ void HttpWindowWrapper::initFRs() {
                 std::string endpoint = params["endpoint"].asString();
                 if (std::holds_alternative<HttpPoll::Poll>(connection)) {
                     std::get<HttpPoll::Poll>(connection)
-                        .pollImage(endpoint, std::get<std::string>(buffer_container[label_]), network_buffer_mtx[label_],
+                        .pollImage(endpoint, std::get<std::string>(buffer_container[label_]),
+                                   network_buffer_mtx[label_],
                                    window->widgets.at(label_)->is_data_available);
                 }
                 // TODO Need to implement for SSE later
