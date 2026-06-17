@@ -46,14 +46,18 @@ void TextInput::copyFromSource() {
     }
 }
 Table::Table(std::string_view _label, std::vector<std::string>&& _header,
-             const std::vector<tableRowContainer>& _src, std::mutex& _src_mtx)
+             std::vector<tableRowContainer>& _src, std::mutex& _src_mtx)
     : Widget(_label), header(std::move(_header)), src(_src), src_mtx(_src_mtx) {
     ncol = header.size();
     rows.emplace_back();
 }
 void Table::copyFromSource() {
     std::lock_guard<std::mutex> _lock(src_mtx);
-    rows.emplace_back(src);
+    // rows.emplace_back(src);
+    for (const auto& row : src) {
+        rows.emplace_back(row);
+    }
+    src.clear();
 }
 void Table::draw() {
     if (is_data_available.load()) {

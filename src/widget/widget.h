@@ -352,22 +352,23 @@ public:
 };
 class Table : public Widget {
 public:
-    using tableRowContainer = std::variant<int, float, std::string>;
+    using tableRowContainerElem = std::variant<int, float, std::string>;
+    using tableRowContainer = std::vector<tableRowContainerElem>;
     int ncol = 0;
 
 protected:
     // Preserve the column types for future use
     std::vector<std::string> header;
-    const std::vector<tableRowContainer>& src;
+    std::vector<tableRowContainer>& src;
     std::mutex& src_mtx;
-    std::vector<std::vector<tableRowContainer>> rows;
+    std::vector<tableRowContainer> rows;
 
 public:
     // Table(std::string_view _label, const std::vector<tableRowContainer>& _row) : Widget(_label) {
     //     rows.emplace_back(_row);
     // }
     Table(std::string_view _label, std::vector<std::string>&& _header,
-          const std::vector<tableRowContainer>& _src, std::mutex& _src_mtx);
+          std::vector<tableRowContainer>& _src, std::mutex& _src_mtx);
     void draw() override;
     void copyFromSource();
 };

@@ -287,6 +287,53 @@ void HttpWindowWrapper::initFRs() {
             }
         }
     };
+    widget_updates_fr["table"] = [this](const std::string& label_, const Json::Value& params) {
+        std::vector<Widgets::Table::tableRowContainer> rows_vector;
+        try {
+            // expected json like {data: [[r1c1, r1,c2], [r2, c1, r2c2]]}
+            const auto& rows = params["data"];
+            for (const auto& row : rows) {
+                Widgets::Table::tableRowContainer temp_row;
+                if (!row.isArray()) {
+                    return;
+                }
+                for (const auto& col : row) {
+                    if (col.isInt()) {
+                        temp_row.push_back(Widgets::Table::tableRowContainerElem(col.asInt()));
+                    } else if (col.isString()) {
+                        temp_row.push_back(Widgets::Table::tableRowContainerElem(col.asString()));
+                    } else if (col.isDouble()) {
+                        temp_row.push_back(Widgets::Table::tableRowContainerElem(col.asFloat()));
+                    }
+                }
+                rows_vector.emplace_back(std::move(temp_row));
+            }
+
+        } catch (const std::exception& e) {
+            std::println("Error at parsing table json {}", e.what());
+        }
+        if (window->isWidgetPresent(label_)) {
+            std::lock_guard<std::mutex> lock_(network_buffer_mtx[label_]);
+            std::get<std::vector<Widgets::Table::tableRowContainer>>(
+                vector_buffer_container[label_]) = std::move(rows_vector);
+            window->widgets.at(label_)->is_data_available.store(true);
+        } else {
+            try {
+                if (!params["header"].isArray()) {
+                    return;
+                }
+                std::vector<std::string> headers;
+                for (const auto& header : params["header"]) {
+                    headers.emplace_back(header.asString());
+                }
+                addTable(label_, std::move(headers), std::move(rows_vector));
+                // to test
+                window->widgets.at(label_)->is_data_available.store(true);
+            } catch(const std::exception& e){
+                std::println("Error at parsing table json header{}", e.what());
+            }
+        }
+    };
     widget_updates_fr["remove"] = [this](const std::string& label_, const Json::Value& params) {
         if (!params.isArray()) [[unlikely]] {
             return;
