@@ -304,6 +304,11 @@ void HttpWindowWrapper::initFRs() {
                         temp_row.push_back(Widgets::Table::tableRowContainerElem(col.asString()));
                     } else if (col.isDouble()) {
                         temp_row.push_back(Widgets::Table::tableRowContainerElem(col.asFloat()));
+                    } else {
+                        std::println(
+                            "Unhandled JSON type. isNull: {}, isObject: {}, isArray: {}, isBool: "
+                            "{}",
+                            col.isNull(), col.isObject(), col.isArray(), col.isBool());
                     }
                 }
                 rows_vector.emplace_back(std::move(temp_row));
@@ -329,7 +334,7 @@ void HttpWindowWrapper::initFRs() {
                 addTable(label_, std::move(headers), std::move(rows_vector));
                 // to test
                 window->widgets.at(label_)->is_data_available.store(true);
-            } catch(const std::exception& e){
+            } catch (const std::exception& e) {
                 std::println("Error at parsing table json header{}", e.what());
             }
         }
