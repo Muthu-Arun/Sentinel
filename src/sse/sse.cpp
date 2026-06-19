@@ -90,7 +90,7 @@ SSE::SSE(std::string_view remote_url_, std::string_view endpoint_, int port_)
 }
 
 SSE::~SSE(){
-    // need change to curl_multi to close the connection
+    // need change to curl_multi to close the connection gracefully
 }
 std::optional<Json::Value> SSE::getJson() {
     std::lock_guard<std::mutex> lock_(data.response_mtx);

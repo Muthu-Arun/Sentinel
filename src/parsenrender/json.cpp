@@ -354,6 +354,7 @@ void HttpWindowWrapper::initFRs() {
             // map_int.erase(key);
             // map_string.erase(key);
             buffer_container.erase(key);
+            vector_buffer_container.erase(key);
             map_vector_double.erase(key);
             map_vector_string.erase(key);
         }
@@ -386,7 +387,7 @@ void HttpWindowWrapper::parseJSON() {
                 widget_updates_fr.at(json[id]["type"].asString())(id, json[id]);
             }
         } catch (const std::exception& e) {
-            std::println("Exception while inferring widget type, in Http poll");
+            std::println("Exception while inferring widget type, in Http poll -> {}", e.what());
         }
     } else if (std::holds_alternative<Sse::SSE>(connection)) {
         while (std::get<Sse::SSE>(connection).is_data_available()) {
@@ -398,7 +399,7 @@ void HttpWindowWrapper::parseJSON() {
                                                                                   json.value()[id]);
 
                     } catch (const std::exception& e) {
-                        std::println("Exception while inferring widget type, in SSE");
+                        std::println("Exception while inferring widget type, in SSE poll -> {}", e.what());
                     }
                 }
             }

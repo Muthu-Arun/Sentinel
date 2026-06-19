@@ -62,6 +62,7 @@ void Table::copyFromSource() {
 void Table::draw() {
     if (is_data_available.load()) {
         copyFromSource();
+        is_data_available.store(false);
     }
     if (!ImGui::BeginTable(label.c_str(), ncol)) [[unlikely]] {
         return;
