@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include <atomic>
+#include <filesystem>
 #include <memory>
 #include <mutex>
 #include <utility>
@@ -9,10 +10,10 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+#include "init.h"
 #include "json.h"
 #include "poll.h"
 #include "widget.h"
-#include "init.h"
 
 int main() {
     // 1. Setup GLFW
@@ -45,12 +46,16 @@ int main() {
     config.OversampleV = 1;
     config.PixelSnapH = true;
 
-    // Load the Regular Font (Size 16.0f)
-
     // Load the Bold Font (Size 16.0f)
-    Widgets::g_FontBold = io.Fonts->AddFontFromFileTTF("fonts/Roboto-Bold.ttf", 20.0f, &config);
+    // Load the Regular Font (Size 16.0f)
+    const char* roboto_bold = "fonts/Roboto-Bold.ttf";
+    const char* roboto_regular = "fonts/Roboto-Regular.ttf";
+    if (std::filesystem::exists(std::filesystem::path(roboto_bold)) &&
+        std::filesystem::exists(std::filesystem::path(roboto_regular))) {
+        Widgets::g_FontBold = io.Fonts->AddFontFromFileTTF(roboto_bold, 20.0f, &config);
+        Widgets::g_FontRegular = io.Fonts->AddFontFromFileTTF(roboto_regular, 16.0f, &config);
+    }
 
-    Widgets::g_FontRegular = io.Fonts->AddFontFromFileTTF("fonts/Roboto-Regular.ttf", 16.0f, &config);
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     // Build the font atlas (your backend usually does this automatically,
     // but if you are doing custom engine integration, call this)
