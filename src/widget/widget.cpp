@@ -10,7 +10,6 @@
 #include "implot.h"
 
 namespace Widgets {
-namespace {
 void applyVisualStyle() {
     ImGuiStyle& style = ImGui::GetStyle();
     style.WindowPadding = ImVec2(18.0f, 16.0f);
@@ -86,7 +85,6 @@ void applyVisualStyle() {
     colors[ImGuiCol_TableRowBgAlt] = ImVec4(1.0f, 1.0f, 1.0f, 0.025f);
     colors[ImGuiCol_NavHighlight] = accent;
 }
-}  // namespace
 
 void init() {
     plot_context = ImPlot::CreateContext();

@@ -413,11 +413,11 @@ void HttpWindowWrapper::renderHeader() {
     if (in_init_phase) [[unlikely]] {
         ImGui::TextDisabled("CONNECTION SETUP");
         ImGui::Spacing();
-        ImGui::SetNextItemWidth(-FLT_MIN);
+        // ImGui::SetNextItemWidth(-FLT_MIN);
         ImGui::InputText("Host URL", host.data(), 250);
-        ImGui::SetNextItemWidth(-FLT_MIN);
+        // ImGui::SetNextItemWidth(-FLT_MIN);
         ImGui::InputText("Host Endpoint", host_endpoint.data(), 250);
-        ImGui::SetNextItemWidth(-FLT_MIN);
+        // ImGui::SetNextItemWidth(-FLT_MIN);
         ImGui::InputScalar("Port", ImGuiDataType_U64, &port);
         ImGui::Spacing();
         if (ImGui::Button("Connect", ImVec2(-FLT_MIN, 38.0f))) {
