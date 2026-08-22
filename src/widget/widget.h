@@ -77,7 +77,10 @@ public:
             case type::Line:
                 // ImGui::PlotLines(label.c_str(), data.data(), buffer_max_limit, head, NULL,
                 // FLT_MAX, FLT_MAX, ImVec2(window_width, window_height));
-                if (ImPlot::BeginPlot(label.c_str())) {
+                if (ImPlot::BeginPlot(label.c_str(), ImVec2(-1.0f, 260.0f),
+                                      ImPlotFlags_NoTitle)) {
+                    ImPlot::SetupAxes(nullptr, nullptr, ImPlotAxisFlags_AutoFit,
+                                      ImPlotAxisFlags_AutoFit);
                     ImPlot::PlotLine(label.c_str(), data.data(), buffer_max_limit, 1, 0, 0, head);
                     ImPlot::EndPlot();
                 }
@@ -145,7 +148,7 @@ public:
         if (isInline) {
             makeInline();
         }
-        if (ImPlot::BeginPlot(label.c_str())) {
+        if (ImPlot::BeginPlot(label.c_str(), ImVec2(-1.0f, 260.0f), ImPlotFlags_NoTitle)) {
             // ImPlot::SetupAxes("Category", "Value", ImPlotAxisFlags_AutoFit,
             // ImPlotAxisFlags_AutoFit); Utils::Log::logVec(src_label);
             ImPlot::SetupAxisTicks(ImAxis_X1, pos.data(), label_format_Implot_axis.size(),
@@ -278,21 +281,27 @@ public:
                              coordinates.end_angle,
                              32);  // 32 segments for smoothness
         draw_list->PathStroke(ImGui::GetColorU32(ImGuiCol_FrameBg), 0,
-                              10.0f);  // 10px thickness
+                              12.0f);  // 12px thickness
         float current_angle =
             coordinates.start_angle +
             (coordinates.end_angle - coordinates.start_angle) * (temp_data / range[1]);
 
-        auto val_pos = ImVec2(pos.x + coordinates.width * 0.4, pos.y + coordinates.width * 0.75);
-        auto label_pos = ImVec2(pos.x + 0.4 * coordinates.width, pos.y + coordinates.width * 0.6);
+        const ImU32 accent = ImGui::GetColorU32(ImGuiCol_PlotHistogram);
+        const ImU32 text_color = ImGui::GetColorU32(ImGuiCol_Text);
         draw_list->PathArcTo(center, coordinates.radius, coordinates.start_angle, current_angle,
                              32);
-        draw_list->PathStroke(ImGui::GetColorU32(ImGuiCol_PlotHistogram), 0, 10.0f);
+        draw_list->PathStroke(accent, 0, 12.0f);
         const std::string val_str = std::format("{}", temp_data);
-        // draw_list->AddText(pos, IM_COL32(255, 0, 0, 255), label.c_str());
-        draw_list->AddText(g_FontBold, 26.0, label_pos, IM_COL32(255, 0, 0, 255), label.c_str());
-        draw_list->AddText(val_pos, IM_COL32(0, 255, 0, 255), val_str.c_str());
-        // draw_list->AddText(g_FontBold, 16.0, val_pos, IM_COL32(255, 0, 0, 255), val_str.c_str());
+        const ImVec2 label_size = g_FontBold
+                                      ? g_FontBold->CalcTextSizeA(18.0f, FLT_MAX, 0.0f, label.c_str())
+                                      : ImGui::CalcTextSize(label.c_str());
+        const ImVec2 value_size = g_FontBold
+                                      ? g_FontBold->CalcTextSizeA(26.0f, FLT_MAX, 0.0f, val_str.c_str())
+                                      : ImGui::CalcTextSize(val_str.c_str());
+        const ImVec2 label_pos(center.x - label_size.x * 0.5f, center.y - 13.0f);
+        const ImVec2 val_pos(center.x - value_size.x * 0.5f, center.y + 14.0f);
+        draw_list->AddText(g_FontBold, 18.0f, label_pos, text_color, label.c_str());
+        draw_list->AddText(g_FontBold, 26.0f, val_pos, accent, val_str.c_str());
     }
 
     ~RadialGauge() {}

@@ -408,12 +408,19 @@ void HttpWindowWrapper::parseJSON() {
 }
 
 void HttpWindowWrapper::renderHeader() {
+    ImGui::SetNextWindowSize(ImVec2(560.0f, 440.0f), ImGuiCond_FirstUseEver);
     ImGui::Begin(win_label.c_str());
     if (in_init_phase) [[unlikely]] {
+        ImGui::TextDisabled("CONNECTION SETUP");
+        ImGui::Spacing();
+        ImGui::SetNextItemWidth(-FLT_MIN);
         ImGui::InputText("Host URL", host.data(), 250);
+        ImGui::SetNextItemWidth(-FLT_MIN);
         ImGui::InputText("Host Endpoint", host_endpoint.data(), 250);
+        ImGui::SetNextItemWidth(-FLT_MIN);
         ImGui::InputScalar("Port", ImGuiDataType_U64, &port);
-        if (ImGui::Button("Enter Host URL")) {
+        ImGui::Spacing();
+        if (ImGui::Button("Connect", ImVec2(-FLT_MIN, 38.0f))) {
             connection.emplace<HttpPoll::Poll>(host.data(), host_endpoint.data(), port);
             in_init_phase = false;
             ImGui::End();
