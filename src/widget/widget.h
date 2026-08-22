@@ -25,6 +25,8 @@
 #include "imgui.h"
 #include "implot.h"
 #include "util.h"
+
+#define SpaceInBetweenWidgetX  20
 namespace Widgets {
 inline ImFont* g_FontRegular = nullptr;
 inline ImFont* g_FontBold = nullptr;
@@ -266,7 +268,7 @@ public:
 
     void draw() override {
         if (isInline) {
-            makeInline();
+            makeInline(0.0f, ImGui::GetStyle().ItemSpacing.x + SpaceInBetweenWidgetX);
         }
         // INIT
         ImVec2 pos = ImGui::GetCursorScreenPos();  // Top-left corner of the widget
