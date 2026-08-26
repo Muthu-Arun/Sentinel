@@ -202,7 +202,8 @@ HttpWindowWrapper::HttpWindowWrapper(const std::string& label, const std::string
     initFRs();
 }
 void HttpWindowWrapper::initFRs() {
-    widget_updates_fr["text"] = [this](const std::string& label_, const Json::Value& params) {
+    widget_updates_fr["text"] = [this](const Json::Value& params) {
+        auto label_ = params["id"].asString();
         if (!window->isWidgetPresent(label_)) {
             addText(label_, params["data"].asString());
         } else [[likely]] {
@@ -212,8 +213,17 @@ void HttpWindowWrapper::initFRs() {
             window->widgets.at(label_)->is_data_available.store(true);
         }
     };
-    widget_updates_fr["radial_gauge"] = [this](const std::string& label_,
-                                               const Json::Value& params) {
+    /*
+    [
+    {
+        id: inline_group_1,
+        widgets: [{}, {}],
+        type: inline
+    }
+    ]
+    */
+    widget_updates_fr["radial_gauge"] = [this](const Json::Value& params) {
+        auto label_ = params["id"].asString();
         if (!window->isWidgetPresent(label_)) {
             addRadialGauge(label_, params["data"].asFloat(), params["min"].asFloat(),
                            params["max"].asFloat());
@@ -223,7 +233,8 @@ void HttpWindowWrapper::initFRs() {
             window->widgets.at(label_)->is_data_available.store(true);
         }
     };
-    widget_updates_fr["plot"] = [this](const std::string& label_, const Json::Value& params) {
+    widget_updates_fr["plot"] = [this](const Json::Value& params) {
+        auto label_ = params["id"].asString();
         if (!window->isWidgetPresent(label_)) {
             addPlot(label_, params["data"].asFloat());
         } else [[likely]] {
@@ -232,7 +243,8 @@ void HttpWindowWrapper::initFRs() {
             window->widgets.at(label_)->is_data_available.store(true);
         }
     };
-    widget_updates_fr["bar_plot"] = [this](const std::string& label_, const Json::Value& params) {
+    widget_updates_fr["bar_plot"] = [this](const Json::Value& params) {
+        auto label_ = params["id"].asString();
         std::vector<double> data_vec;
         std::vector<std::string> data_label_vec;
         if (params.isMember("data") && params.isMember("data_labels")) {
@@ -256,7 +268,8 @@ void HttpWindowWrapper::initFRs() {
             addBarPlot(label_, data_vec, data_label_vec);
         }
     };
-    widget_updates_fr["button"] = [this](const std::string& label_, const Json::Value& params) {
+    widget_updates_fr["button"] = [this](const Json::Value& params) {
+        auto label_ = params["id"].asString();
         if (params.isMember("method") && params.isMember("endpoint")) {
             if (window->isWidgetPresent(label_)) {
                 // Do nothing for now, a button does not need an updation
@@ -270,7 +283,8 @@ void HttpWindowWrapper::initFRs() {
             }
         }
     };
-    widget_updates_fr["image"] = [this](const std::string& label_, const Json::Value& params) {
+    widget_updates_fr["image"] = [this](const Json::Value& params) {
+        auto label_ = params["id"].asString();
         if (params.isMember("endpoint")) {
             if (window->isWidgetPresent(label_)) {
                 std::string endpoint = params["endpoint"].asString();
@@ -287,7 +301,8 @@ void HttpWindowWrapper::initFRs() {
             }
         }
     };
-    widget_updates_fr["table"] = [this](const std::string& label_, const Json::Value& params) {
+    widget_updates_fr["table"] = [this](const Json::Value& params) {
+        auto label_ = params["id"].asString();
         std::vector<Widgets::Table::tableRowContainer> rows_vector;
         try {
             // expected json like {data: [[r1c1, r1,c2], [r2, c1, r2c2]]}
@@ -339,7 +354,15 @@ void HttpWindowWrapper::initFRs() {
             }
         }
     };
-    widget_updates_fr["remove"] = [this](const std::string& label_, const Json::Value& params) {
+    /*
+    [
+    {
+        target: [target_1, target_2],
+        type: remove
+    }
+    ]
+    */
+    widget_updates_fr["remove"] = [this](const Json::Value& params) {
         if (!params.isArray()) [[unlikely]] {
             return;
         }
@@ -347,7 +370,7 @@ void HttpWindowWrapper::initFRs() {
             auto key = elem.asString();
             window->removeWidget(key);
             network_buffer_mtx.erase(key);
-            // Since keys are unique instead of checking, just erasing in all of them
+            // Since keys are unique instead of checking just erasing in all of them
             // As these buffers mostlikey be removed as the json parsing and updating will probably
             // remain single threaded
             // map_float.erase(key);
@@ -359,14 +382,25 @@ void HttpWindowWrapper::initFRs() {
             map_vector_string.erase(key);
         }
     };
-    widget_updates_fr["inline"] = [this](const std::string& label_, const Json::Value& params) {
+    /*
+    [
+    {
+        id: inline_group_1,
+        widgets: [{}, {}],
+        type: inline
+    }
+    ]
+    */
+    widget_updates_fr["inline"] = [this](const Json::Value& params) {
+        const std::string label_ = params["id"].asString();
         std::println("In Inline widget construction, parent - {}", label_);
         try {
             const auto& widgets = params["widgets"];
-            for (const auto& widget : widgets.getMemberNames()) {
-                widget_updates_fr.at(widgets[widget]["type"].asString())(widget, widgets[widget]);
-                window->widgets.at(widget)->isInline = true;
-                std::println("Inline widget {} constructed with parent {}", widget, label_);
+            for (const auto& widget : widgets) {
+                const std::string widget_id = widget["id"].asString();
+                widget_updates_fr.at(widget["type"].asString())(widget);
+                window->widgets.at(widget_id)->isInline = true;
+                std::println("Inline widget {} constructed with parent {}", widget_id, label_);
             }
         } catch (const std::exception& e) {
             std::println("Exception while constructing inline widgets");
@@ -383,8 +417,8 @@ void HttpWindowWrapper::parseJSON() {
         std::lock_guard<std::mutex> _lock(*(response.second));
         const Json::Value& json = *(response.first);
         try {
-            for (const std::string& id : json.getMemberNames()) {
-                widget_updates_fr.at(json[id]["type"].asString())(id, json[id]);
+            for (const Json::Value& widget_elem : json) {
+                widget_updates_fr.at(widget_elem["type"].asString())(widget_elem);
             }
         } catch (const std::exception& e) {
             std::println("Exception while inferring widget type, in Http poll -> {}", e.what());
@@ -392,14 +426,14 @@ void HttpWindowWrapper::parseJSON() {
     } else if (std::holds_alternative<Sse::SSE>(connection)) {
         while (std::get<Sse::SSE>(connection).is_data_available()) {
             auto json = std::get<Sse::SSE>(connection).getJson();
-            if (json && json.value().isObject()) {
-                for (const std::string& id : json.value().getMemberNames()) {
+            if (json && json.value().isArray()) {
+                for (const Json::Value& widget_elem : *json) {
                     try {
-                        widget_updates_fr.at(json.value()[id]["type"].asString())(id,
-                                                                                  json.value()[id]);
+                        widget_updates_fr.at(widget_elem["type"].asString())(widget_elem);
 
                     } catch (const std::exception& e) {
-                        std::println("Exception while inferring widget type, in SSE poll -> {}", e.what());
+                        std::println("Exception while inferring widget type, in SSE poll -> {}",
+                                     e.what());
                     }
                 }
             }

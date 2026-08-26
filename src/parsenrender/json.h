@@ -26,7 +26,7 @@ class HttpWindowWrapper {
 protected:
     std::unordered_map<std::string, containerType> buffer_container;
     std::unordered_map<std::string, std::mutex> network_buffer_mtx;
-    std::unordered_map<std::string, std::function<void(const std::string& id, const Json::Value&)>>
+    std::unordered_map<std::string, std::function<void(const Json::Value&)>>
         widget_updates_fr;
     std::unordered_map<std::string, std::vector<double>> map_vector_double;
     std::unordered_map<std::string, std::vector<std::string>> map_vector_string;
