@@ -396,10 +396,12 @@ void HttpWindowWrapper::initFRs() {
         std::println("In Inline widget construction, parent - {}", label_);
         try {
             const auto& widgets = params["widgets"];
+            bool is_first_widget = true;
             for (const auto& widget : widgets) {
                 const std::string widget_id = widget["id"].asString();
                 widget_updates_fr.at(widget["type"].asString())(widget);
-                window->widgets.at(widget_id)->isInline = true;
+                window->widgets.at(widget_id)->isInline = !is_first_widget;
+                is_first_widget = false;
                 std::println("Inline widget {} constructed with parent {}", widget_id, label_);
             }
         } catch (const std::exception& e) {

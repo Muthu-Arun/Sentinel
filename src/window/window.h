@@ -4,6 +4,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <vector>
 
 #include "widget.h"
 namespace Window {
@@ -11,6 +12,7 @@ class Window {
 public:
     std::string label;  // Window Name
     std::unordered_map<std::string, std::unique_ptr<Widgets::Widget>> widgets;
+    std::vector<std::string> widget_order;
 
     Window(std::string_view label);
     Window(const Window&) = delete;

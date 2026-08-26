@@ -8,13 +8,18 @@
 namespace Window {
 Window::Window(std::string_view label) : label(label) {}
 void Window::render() {
-    for (auto&[_, widget]: widgets) {
-        widget->draw();
+    for (const auto& id : widget_order) {
+        if (auto widget = widgets.find(id); widget != widgets.end()) {
+            widget->second->draw();
+        }
     }
 }
 
 void Window::addWidget(const std::string_view id, std::unique_ptr<Widgets::Widget> widget) {
-    widgets.emplace(id, std::move(widget));
+    const std::string widget_id(id);
+    if (widgets.emplace(widget_id, std::move(widget)).second) {
+        widget_order.emplace_back(widget_id);
+    }
 }
 
 void Window::updateWidget(const std::string& id, std::unique_ptr<Widgets::Widget> widget) {
@@ -26,5 +31,6 @@ bool Window::isWidgetPresent(const std::string& id){
 }
 void Window::removeWidget(const std::string& id) {
     widgets.erase(id);
+    std::erase(widget_order, id);
 }
 }  // namespace Window
