@@ -18,6 +18,7 @@
 
 namespace Sse {
 
+const std::string dataPrefix = "data: ";
 size_t sse_curl_callback(char* ptr, size_t size, size_t nmemb, void* userdata) {
     size_t bytes = size * nmemb;
 
@@ -34,7 +35,6 @@ size_t sse_curl_callback(char* ptr, size_t size, size_t nmemb, void* userdata) {
         streamBuffer.erase(0, pos + 2);  // Remove parsed event and \n\n
 
         // Extract the "data: " portion
-        std::string dataPrefix = "data: ";
         size_t dataPos = eventPayload.find(dataPrefix);
 
         if (dataPos != std::string::npos) {
@@ -89,7 +89,7 @@ SSE::SSE(std::string_view remote_url_, std::string_view endpoint_, int port_)
         curl);
 }
 
-SSE::~SSE(){
+SSE::~SSE() {
     // need change to curl_multi to close the connection gracefully
 }
 std::optional<Json::Value> SSE::getJson() {

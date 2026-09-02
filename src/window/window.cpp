@@ -16,9 +16,8 @@ void Window::render() {
 }
 
 void Window::addWidget(const std::string_view id, std::unique_ptr<Widgets::Widget> widget) {
-    const std::string widget_id(id);
-    if (widgets.emplace(widget_id, std::move(widget)).second) {
-        widget_order.emplace_back(widget_id);
+    if (widgets.emplace(id, std::move(widget)).second) {
+        widget_order.emplace_back(id);
     }
 }
 
@@ -26,7 +25,7 @@ void Window::updateWidget(const std::string& id, std::unique_ptr<Widgets::Widget
     widgets[id] = std::move(widget);
 }
 
-bool Window::isWidgetPresent(const std::string& id){
+bool Window::isWidgetPresent(const std::string& id) {
     return widgets.find(id) != widgets.end();
 }
 void Window::removeWidget(const std::string& id) {
