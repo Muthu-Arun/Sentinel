@@ -19,6 +19,15 @@
 namespace Sse {
 
 const std::string dataPrefix = "data: ";
+static int progress_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow,
+                             curl_off_t ultotal, curl_off_t ulnow) {
+    bool* cancel = static_cast<bool*>(clientp);
+
+    if (*cancel)
+        return 1;  // non-zero aborts the transfer
+
+    return 0;
+}
 size_t sse_curl_callback(char* ptr, size_t size, size_t nmemb, void* userdata) {
     size_t bytes = size * nmemb;
 
@@ -54,7 +63,7 @@ size_t sse_curl_callback(char* ptr, size_t size, size_t nmemb, void* userdata) {
                 dataStruct->responses.emplace(std::move(parsedJson));
                 dataStruct->is_new_data_available.store(true, std::memory_order_relaxed);
             } else {
-                std::cerr << "Dropped invalid JSON payload. Error: " << errs << "\n";
+                std::println("Dropped invalid JSON payload. Error: {}", errs);
             }
         }
     }
@@ -80,6 +89,9 @@ SSE::SSE(std::string_view remote_url_, std::string_view endpoint_, int port_)
     // curl_easy_setopt(curl, CURLOPT_PORT, port);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &data);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, sse_curl_callback);
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);  // enable progress callback
+    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
+    curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &abort);
 
     connection_thread = std::thread(
         [](CURL* curl) {
@@ -90,7 +102,8 @@ SSE::SSE(std::string_view remote_url_, std::string_view endpoint_, int port_)
 }
 
 SSE::~SSE() {
-    // need change to curl_multi to close the connection gracefully
+    abort = true;
+    connection_thread.join();
 }
 std::optional<Json::Value> SSE::getJson() {
     std::lock_guard<std::mutex> lock_(data.response_mtx);
