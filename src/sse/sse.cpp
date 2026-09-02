@@ -21,9 +21,9 @@ namespace Sse {
 const std::string dataPrefix = "data: ";
 static int progress_callback(void* clientp, curl_off_t dltotal, curl_off_t dlnow,
                              curl_off_t ultotal, curl_off_t ulnow) {
-    bool* cancel = static_cast<bool*>(clientp);
+    std::atomic<bool>* cancel = static_cast<std::atomic<bool>*>(clientp);
 
-    if (*cancel)
+    if (cancel->load())
         return 1;  // non-zero aborts the transfer
 
     return 0;
@@ -102,7 +102,7 @@ SSE::SSE(std::string_view remote_url_, std::string_view endpoint_, int port_)
 }
 
 SSE::~SSE() {
-    abort = true;
+    abort.store(true);
     connection_thread.join();
 }
 std::optional<Json::Value> SSE::getJson() {

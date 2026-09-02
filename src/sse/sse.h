@@ -29,7 +29,7 @@ protected:
     UserData data;
     std::string remote_url, endpoint, remote;
     uint64_t port;
-    bool abort = false;
+    std::atomic<bool> abort = false;
     CURL* curl;
     // have a drogon client for standard http requests
     drogon::HttpClientPtr client; 
