@@ -57,6 +57,9 @@ set(IM_PLOT_SOURCES
     ${VENDOR_DIR}/implot/implot_items.cpp
     ${VENDOR_DIR}/implot/implot.cpp
 )
+set(SIMDJSON_SOURCES
+    ${VENDOR_DIR}/simdjson/simdjson.cpp
+)
 set(HTTP_SOURCES
     src/http/poll.cpp)
 set(WIDGET_SOURCES
@@ -73,7 +76,7 @@ set(SSE_SOURCES
 
 # 3. Create the Executable
 add_executable(sentinel src/main.cpp ${IMGUI_SOURCES} ${HTTP_SOURCES} ${WIDGET_SOURCES} ${WINDOW_SOURCES} ${PARSING_SOURCES} ${IM_PLOT_SOURCES} ${UTIL_SOURCES}
-                                        ${SSE_SOURCES})
+                                        ${SSE_SOURCES} ${SIMDJSON_SOURCES})
 
 # 4. Include Directories
 # Allow includes like <imgui.h> and <backends/imgui_impl_glfw.h>
@@ -89,6 +92,7 @@ target_include_directories(sentinel PUBLIC
     ${SRC_DIR}/sse
     ${VENDOR_DIR}/implot
     ${VENDOR_DIR}/stb
+    ${VENDOR_DIR}/simdjson
 )
 
 # 5. Link Libraries

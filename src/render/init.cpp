@@ -2,6 +2,8 @@
 
 #include <json/value.h>
 
+#include <cstdint>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <ios>
@@ -10,9 +12,11 @@
 #include <optional>
 #include <print>
 #include <sstream>
+#include <string_view>
 
 #include "imgui.h"
 #include "json.h"
+#include "simdjson.h"
 namespace MainWindow {
 std::vector<std::unique_ptr<ParseJson::HttpWindowWrapper>> poll_windows;
 /*
@@ -27,40 +31,48 @@ JSON Config should look something like this
 */
 
 void init() {
-    if (auto config = loadConfig(); config && config.value() && config->isObject()) {
-        auto windows = config.value().getMemberNames();
-        for (const auto& window : windows) {
-            std::println("Initialiazing window - {}", window);
+    simdjson::ondemand::parser parser;
+    simdjson::padded_string json = simdjson::padded_string::load("sentinel.json");
+    simdjson::ondemand::document doc = parser.iterate(json);
+    try {
+        for (auto window : doc.get_array()) {
+            // auto window_obj = window->get_object();
+            std::string_view authorization;
+            std::string_view window_id = window["window"];
+            std::string_view host = window["host"];
+            std::string_view endpoint = window["endpoint"];
+            std::string_view connection = window["connection"];
+            auto err = window["authorization"].get(authorization);
+            if (err) {
+                std::println("Parsing auth failed, proceeding without auth");
+            }
+            uint32_t port = static_cast<uint32_t>(window["port"]);
+            std::println("Parsed JSON values\n {}, {}, {}, {}, {}, {}", window_id, host, endpoint,
+                         connection, authorization, port);
+
             poll_windows.emplace_back(std::make_unique<ParseJson::HttpWindowWrapper>(
-                window, config.value()[window]["host"].asString(),
-                config.value()[window]["endpoint"].asString(),
-                config.value()[window]["port"].asInt(),
-                config.value()[window]["connection"].asString()));
+                window_id, host, endpoint, port, connection));
         }
-    } else {
-        std::println("Failed to parse JSON");
+    } catch (const std::exception& e) {
+        std::println("Error Occured while parsing config file -> {}", e.what());
         poll_windows.emplace_back(std::make_unique<ParseJson::HttpWindowWrapper>());
     }
 }
-std::optional<Json::Value> loadConfig() {
+/*
+std::optional<simdjson::simdjson_result<simdjson::ondemand::document>> loadConfig() {
     std::ifstream configfile("sentinel.json");
     if (configfile) {
-        Json::Value root;
-        Json::CharReaderBuilder builder;
-        std::string errs;
+        std::stringstream buffer_content;
+        buffer_content << configfile.rdbuf();
+        std::string content = buffer_content.str();
 
-        // This is the step that actually "translates" the text into an Object
-        bool ok = Json::parseFromStream(builder, configfile, &root, &errs);
-
-        if (ok) {
-            return root;
-        } else {
-            std::println("Parse Error: {}", errs);
-            return std::nullopt;
-        }
+        simdjson::ondemand::parser parser;
+        auto doc = parser.iterate(content);
+        return doc;
     }
     return std::nullopt;
 }
+*/
 void renderWindows() {
     /*
     if (ImGui::BeginMainMenuBar()) {

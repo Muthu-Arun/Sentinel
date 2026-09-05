@@ -5,7 +5,7 @@ This needs to someting like
 
 */
 #include <json/value.h>
-
+#include "simdjson.h"
 #include <memory>
 #include <optional>
 
@@ -14,7 +14,7 @@ namespace MainWindow {
 extern std::vector<std::unique_ptr<ParseJson::HttpWindowWrapper>> poll_windows;
 void init();
 void renderWindows();
-std::optional<Json::Value> loadConfig();
+// std::optional<simdjson::simdjson_result<simdjson::ondemand::document>> loadConfig();
 void clean();
 
 }  // namespace MainWindow

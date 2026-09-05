@@ -182,9 +182,9 @@ HttpWindowWrapper::HttpWindowWrapper() : in_init_phase(true) {
     connection.emplace<std::monostate>();
     initFRs();
 }
-HttpWindowWrapper::HttpWindowWrapper(const std::string& label, const std::string& host,
-                                     const std::string& endpoint, const int port,
-                                     const std::string& connection_type)
+HttpWindowWrapper::HttpWindowWrapper(const std::string_view label, const std::string_view host,
+                                     const std::string_view endpoint, const int port,
+                                     const std::string_view connection_type)
     : in_init_phase(false) {
     win_idx = window_count++;
     win_label = label;

@@ -10,6 +10,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <variant>
 #include <vector>
@@ -21,16 +22,17 @@
 
 namespace ParseJson {
 
-    using containerType = std::variant<std::atomic<int>, std::atomic<float>, std::string>;
+using containerType = std::variant<std::atomic<int>, std::atomic<float>, std::string>;
 class HttpWindowWrapper {
 protected:
     std::unordered_map<std::string, containerType> buffer_container;
     std::unordered_map<std::string, std::mutex> network_buffer_mtx;
-    std::unordered_map<std::string, std::function<void(const Json::Value&)>>
-        widget_updates_fr;
+    std::unordered_map<std::string, std::function<void(const Json::Value&)>> widget_updates_fr;
     std::unordered_map<std::string, std::vector<double>> map_vector_double;
     std::unordered_map<std::string, std::vector<std::string>> map_vector_string;
-    std::unordered_map<std::string, std::variant<std::vector<Widgets::Table::tableRowContainer>, std::vector<double>, std::vector<std::string>>> vector_buffer_container;
+    std::unordered_map<std::string, std::variant<std::vector<Widgets::Table::tableRowContainer>,
+                                                 std::vector<double>, std::vector<std::string>>>
+        vector_buffer_container;
     std::array<char, 250> host{}, host_endpoint{};
     uint64_t port = 80;
     bool in_init_phase;
@@ -42,9 +44,9 @@ public:
     HttpWindowWrapper();
     HttpWindowWrapper(const HttpWindowWrapper&) = delete;
     // HttpWindowWrapper(HttpWindowWrapper&&) = default;
-    HttpWindowWrapper(const std::string& label, const std::string& host,
-                      const std::string& endpoint, const int port,
-                      const std::string& connection_type);
+    HttpWindowWrapper(const std::string_view label, const std::string_view host,
+                      const std::string_view endpoint, const int port,
+                      const std::string_view connection_type);
     std::variant<std::monostate, HttpPoll::Poll, Sse::SSE> connection;
     std::optional<Window::Window> window;
 
@@ -61,7 +63,8 @@ public:
                    drogon::HttpMethod method);
 
     void addImage(const std::string& _label, const std::string& endpoint);
-    void addTable(const std::string& _label, std::vector<std::string>&& header, std::vector<Widgets::Table::tableRowContainer>&& rows = {});
+    void addTable(const std::string& _label, std::vector<std::string>&& header,
+                  std::vector<Widgets::Table::tableRowContainer>&& rows = {});
 
     void renderHeader();
     void parseJSON();
