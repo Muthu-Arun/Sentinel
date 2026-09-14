@@ -37,7 +37,7 @@ void init() {
     try {
         for (auto window : doc.get_array()) {
             // auto window_obj = window->get_object();
-            std::string_view authorization;
+            std::string_view authorization; //auth is an optional elem
             std::string_view window_id = window["window"];
             std::string_view host = window["host"];
             std::string_view endpoint = window["endpoint"];
@@ -51,7 +51,7 @@ void init() {
                          connection, authorization, port);
 
             poll_windows.emplace_back(std::make_unique<ParseJson::HttpWindowWrapper>(
-                window_id, host, endpoint, port, connection));
+                window_id, host, endpoint, port, connection, authorization));
         }
     } catch (const std::exception& e) {
         std::println("Error Occured while parsing config file -> {}", e.what());

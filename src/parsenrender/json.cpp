@@ -195,7 +195,28 @@ HttpWindowWrapper::HttpWindowWrapper(const std::string_view label, const std::st
     // connection.emplace<HttpPoll::Poll>(this->host.data(), this->host_endpoint.data(),
     // this->port);
     if (connection_type == "sse") {
-        connection.emplace<Sse::SSE>(host, endpoint, port);
+        connection.emplace<Sse::SSE>(host, endpoint, port, "");
+    } else {
+        connection.emplace<HttpPoll::Poll>(host, endpoint, port);
+    }
+    initFRs();
+}
+
+HttpWindowWrapper::HttpWindowWrapper(const std::string_view label, const std::string_view host,
+                                     const std::string_view endpoint, const int port,
+                                     const std::string_view connection_type,
+                                     const std::string_view auth_token)
+    : in_init_phase(false), auth_token(auth_token) {
+    win_idx = window_count++;
+    win_label = label;
+    window.emplace(win_label);
+    std::copy(host.begin(), host.end(), this->host.begin());
+    std::copy(endpoint.begin(), endpoint.end(), this->host_endpoint.begin());
+    this->port = port;
+    // connection.emplace<HttpPoll::Poll>(this->host.data(), this->host_endpoint.data(),
+    // this->port);
+    if (connection_type == "sse") {
+        connection.emplace<Sse::SSE>(host, endpoint, port, auth_token);
     } else {
         connection.emplace<HttpPoll::Poll>(host, endpoint, port);
     }

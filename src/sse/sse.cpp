@@ -13,6 +13,7 @@
 #include <mutex>
 #include <optional>
 #include <print>
+#include <string_view>
 #include <thread>
 #include <utility>
 
@@ -71,14 +72,9 @@ size_t sse_curl_callback(char* ptr, size_t size, size_t nmemb, void* userdata) {
     return bytes;
 }
 
-Json::Value extractPayload(std::string_view buffer) noexcept {
-    size_t startPos = buffer.find("data:");
-    size_t endPos = buffer.find("\n\n");
-    return Json::Value(std::string(buffer.substr(startPos, endPos)));
-}
-
-SSE::SSE(std::string_view remote_url_, std::string_view endpoint_, int port_)
-    : remote_url(remote_url_), endpoint(endpoint_), port(port_) {
+SSE::SSE(std::string_view remote_url_, std::string_view endpoint_, int port_,
+         std::string_view auth_token_)
+    : remote_url(remote_url_), endpoint(endpoint_), port(port_), auth_token(auth_token_) {
     remote = std::format("{}:{}{}", remote_url, port, endpoint);
     client = drogon::HttpClient::newHttpClient(remote_url, static_cast<uint16_t>(port));
     curl = curl_easy_init();
@@ -92,6 +88,12 @@ SSE::SSE(std::string_view remote_url_, std::string_view endpoint_, int port_)
     curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);  // enable progress callback
     curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
     curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &abort);
+    struct curl_slist* headers = NULL;
+
+    authorization_header = std::format("Authorization: {}", auth_token);
+    headers = curl_slist_append(headers, authorization_header.c_str());
+
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
     connection_thread = std::thread(
         [](CURL* curl) {
@@ -105,6 +107,7 @@ SSE::~SSE() {
     abort.store(true);
     connection_thread.join();
 }
+void addHeader(const std::unordered_map<std::string, std::string> headers) {}
 std::optional<Json::Value> SSE::getJson() {
     std::lock_guard<std::mutex> lock_(data.response_mtx);
     if (data.responses.empty()) {

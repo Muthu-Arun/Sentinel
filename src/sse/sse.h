@@ -11,6 +11,7 @@
 #include <queue>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 namespace Sse {
 struct UserData {
     std::queue<Json::Value> responses;
@@ -19,7 +20,6 @@ struct UserData {
     std::atomic<bool> is_new_data_available = 0;
 };
 
-Json::Value extractPayload(std::string_view buffer) noexcept;
 
 size_t sse_curl_callback(char* ptr, size_t size, size_t nmemb, void* userdata);
 
@@ -27,17 +27,18 @@ class SSE {
 protected:
     // Don't access UserData.buffer outside the connection thread
     UserData data;
-    std::string remote_url, endpoint, remote;
+    std::string remote_url, endpoint, remote, auth_token, authorization_header;
     uint64_t port;
     std::atomic<bool> abort = false;
     CURL* curl;
     // have a drogon client for standard http requests
-    drogon::HttpClientPtr client; 
+    drogon::HttpClientPtr client;
 
 public:
-    SSE(std::string_view remote_url_, std::string_view endpoint_, int port = 80);
+    SSE(std::string_view remote_url_, std::string_view endpoint_, int port, std::string_view auth_token_);
     bool is_data_available() const noexcept;
     void pollImage(const std::string& endpoint, std::string& img_buf, std::mutex& img_buf_mtx, std::atomic<bool>& is_new_data_available);
+    void addHeader(const std::unordered_map<std::string, std::string> headers);
     std::optional<Json::Value> getJson();
     ~SSE();
 

@@ -41,12 +41,18 @@ public:
     static uint32_t window_count;
     uint32_t win_idx;
     std::string win_label;
+    std::string auth_token;
     HttpWindowWrapper();
     HttpWindowWrapper(const HttpWindowWrapper&) = delete;
     // HttpWindowWrapper(HttpWindowWrapper&&) = default;
     HttpWindowWrapper(const std::string_view label, const std::string_view host,
                       const std::string_view endpoint, const int port,
                       const std::string_view connection_type);
+
+    HttpWindowWrapper(const std::string_view label, const std::string_view host,
+                      const std::string_view endpoint, const int port,
+                      const std::string_view connection_type,
+                      const std::string_view auth_token);
     std::variant<std::monostate, HttpPoll::Poll, Sse::SSE> connection;
     std::optional<Window::Window> window;
 
