@@ -14,7 +14,7 @@ Sentinel is a native C++ application designed to decouple the user interface fro
 * **High-Performance Native App:** Built with **Modern C++ (C++23)**, **Dear imgui** and **Drogon** ensuring low memory footprint and immediate-mode rendering speeds that web dashboards can't match.
 * **Asynchronous Networking:** Non-blocking I/O ensures the UI remains responsive even while streaming heavy data payloads or handling complex network requests.
 * **Hot-Reloading:** Modify the JSON response on your server, and Sentinel reflects the changes in real-time on the next fetch cycle.
-* **Cross-Platform:** Designed to run on Linux, Windows, and macOS. **Currently at Pre-MVP Stage Only Linux Support**
+* **Cross-Platform:** Builds on Linux, Windows, and macOS.
 
 ## Tech Stack
 
@@ -34,36 +34,60 @@ Sentinel follows a strict separation of concerns:
 ## Build Instructions
 
 ### Prerequisites
-* **NOTE:** The project is in a pre MVP stage, only tested in ubuntu and ubuntu based distros
-* C++23 compatible compiler (GCC/Clang/MSVC)
-* CMake (3.10+) with Make or Ninja
-* OpenGL / GLFW dependencies
-* Drogon Installed
 
-### Building from Source
+* A C++23 compiler: GCC, Clang, Apple Clang, or a current Visual Studio 2022
+* CMake 3.20 or newer
+* OpenGL, GLFW, Drogon, and libcurl
+
+### Linux (Ubuntu)
 
 ```bash
-# install opengl and glfw deps
 sudo apt update
 sudo apt install libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev
-
-#install C++23 deps
 sudo apt install libstdc++-14-dev clang-20
 
-#install drogon
+# Install Drogon
 git clone https://github.com/drogonframework/drogon.git
 sudo apt install libjsoncpp-dev uuid-dev zlib1g-dev libssl-dev
-
-#install curl deps for SSE
-
 sudo apt install libcurl4-openssl-dev libcurl4
-
 cd drogon && sudo ./build.sh && cd ..
-# Clone the repository
-git clone https://github.com/Muthu-Arun/Sentinel.git
-cd Sentinel
 
-# Create build directory
-mkdir build 
-cmake -DCMAKE_C_COMPILER=clang-20 -DCMAKE_CXX_COMPILER=clang++-20 -B ./build
-cmake --build ./build
+cmake -S . -B build -DCMAKE_CXX_COMPILER=clang++-20
+cmake --build build
+```
+
+### macOS
+
+Install Xcode Command Line Tools and the dependencies with Homebrew:
+
+```bash
+xcode-select --install
+brew install cmake curl drogon glfw
+cmake -S . -B build -DCMAKE_PREFIX_PATH="$(brew --prefix)"
+cmake --build build
+```
+
+### Windows
+
+Install Visual Studio 2022 with the **Desktop development with C++** workload, CMake, and
+[vcpkg](https://learn.microsoft.com/vcpkg/get_started/get-started). The included manifest
+installs the required libraries:
+
+```powershell
+cmake -S . -B build -A x64 `
+  -DCMAKE_TOOLCHAIN_FILE=C:/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake
+cmake --build build --config Release
+```
+
+The executable and its required `fonts` and `sentinel.json` runtime files are placed together
+in the selected build configuration's output directory.
+
+### Portable vcpkg Build
+
+The same manifest can be used on Linux and macOS by supplying the vcpkg toolchain:
+
+```bash
+cmake -S . -B build \
+  -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake
+cmake --build build --config Release
+```

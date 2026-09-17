@@ -1,14 +1,12 @@
 cmake_minimum_required(VERSION 3.20)
-project(Sentinel)
+project(Sentinel LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 23)
-# add_compile_options(-Wall -Wextra -Wpedantic -Werror)
-add_compile_options(-Wall -Wextra )
 # 1. Find system dependencies (GLFW and OpenGL)
 find_package(glfw3 REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(Drogon REQUIRED)
 find_package(CURL REQUIRED)
+find_package(Threads REQUIRED)
 # 2. Define ImGui Sources
 # We need the core files AND the specific backends for GLFW and OpenGL3
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/imgui)
@@ -24,7 +22,9 @@ if (USE_TSAN AND USE_ASAN)
 endif()
 
 # 3. Setup compiler and linker flags based on the selection
-if (USE_TSAN)
+if ((USE_TSAN OR USE_ASAN) AND MSVC)
+    message(FATAL_ERROR "Sanitizer options are only supported with GCC or Clang")
+elseif (USE_TSAN)
     message(STATUS "ThreadSanitizer (TSan) Enabled")
     
     # -fsanitize=thread: Enables TSan
@@ -78,6 +78,17 @@ set(SSE_SOURCES
 add_executable(sentinel src/main.cpp ${IMGUI_SOURCES} ${HTTP_SOURCES} ${WIDGET_SOURCES} ${WINDOW_SOURCES} ${PARSING_SOURCES} ${IM_PLOT_SOURCES} ${UTIL_SOURCES}
                                         ${SSE_SOURCES} ${SIMDJSON_SOURCES})
 
+set_target_properties(sentinel PROPERTIES
+    CXX_STANDARD 23
+    CXX_STANDARD_REQUIRED ON
+    CXX_EXTENSIONS OFF
+)
+
+target_compile_options(sentinel PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/W4>
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall;-Wextra>
+)
+
 # 4. Include Directories
 # Allow includes like <imgui.h> and <backends/imgui_impl_glfw.h>
 target_include_directories(sentinel PUBLIC 
@@ -96,4 +107,18 @@ target_include_directories(sentinel PUBLIC
 )
 
 # 5. Link Libraries
-target_link_libraries(sentinel PRIVATE glfw OpenGL::GL Drogon::Drogon pthread CURL::libcurl)
+target_link_libraries(sentinel PRIVATE
+    glfw
+    OpenGL::GL
+    Drogon::Drogon
+    Threads::Threads
+    CURL::libcurl
+)
+
+# Keep runtime files next to the executable for single and multi-config generators.
+add_custom_command(TARGET sentinel POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/fonts" "$<TARGET_FILE_DIR:sentinel>/fonts"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_SOURCE_DIR}/sentinel.json" "$<TARGET_FILE_DIR:sentinel>/sentinel.json"
+)

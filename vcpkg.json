@@ -1,0 +1,9 @@
+{
+  "name": "sentinel",
+  "version-string": "0.1.0",
+  "dependencies": [
+    "curl",
+    "drogon",
+    "glfw3"
+  ]
+}
