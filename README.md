@@ -31,6 +31,10 @@ Sentinel follows a strict separation of concerns:
 2.  **State Layer:** Parses JSON into a local state object using double-buffering to prevent read/write tearing.
 3.  **Render Layer:** The ImGui loop reads the "active" buffer and reconstructs the UI every frame based on the schema definitions (e.g., `{ "type": "plot", "data": [...] }`).
 
+## Documentation
+
+* [SSE Widget Data Specification](docs/sse_widget_data_structures.md): Complete guide on JSON schemas and SSE streaming formats for all supported widgets.
+
 ## Build Instructions
 
 ### Prerequisites
