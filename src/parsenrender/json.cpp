@@ -12,6 +12,7 @@
 #include <print>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -108,10 +109,10 @@ void HttpWindowWrapper::addPlot(const std::string& _label, float data,
                       std::make_unique<Widgets::Plot<float>>(
                           _label, ptype, std::get<std::atomic<float>>(buffer_container[_label])));
 }
-void HttpWindowWrapper::addBarPlot(const std::string& _label, const std::vector<double>& data,
-                                   const std::vector<std::string>& format_labels) {
-    map_vector_double[_label] = data;
-    map_vector_string[_label] = format_labels;
+void HttpWindowWrapper::addBarPlot(const std::string& _label, std::vector<double>&& data,
+                                   std::vector<std::string>&& format_labels) {
+    map_vector_double[_label] = std::move(data);
+    map_vector_string[_label] = std::move(format_labels);
     network_buffer_mtx[_label];
     window->addWidget(_label, std::make_unique<Widgets::BarPlot<double>>(
                                   _label, map_vector_double[_label], map_vector_string[_label],
@@ -268,26 +269,28 @@ void HttpWindowWrapper::initFRs() {
         auto label_ = params["id"].asString();
         std::vector<double> data_vec;
         std::vector<std::string> data_label_vec;
-        if (params.isMember("data") && params.isMember("data_labels")) {
-            if (params["data"].isArray() && params["data_labels"].isArray()) {
-                for (auto& elem : params["data"]) {
-                    data_vec.push_back(elem.asDouble());
-                }
-                for (auto& elem : params["data_labels"]) {
-                    data_label_vec.push_back(elem.asString());
-                }
-            } else {
-                std::println("Values Expected as Arrays for bar_plot");
+        if (params.isMember("data") && params["data"].isArray()) {
+            for (auto& elem : params["data"]) {
+                data_vec.push_back(elem.asDouble());
             }
         }
-        if (window->isWidgetPresent(label_)) {
-            std::lock_guard<std::mutex> lock(network_buffer_mtx[label_]);
-            map_vector_double[label_] = std::move(data_vec);
-            map_vector_string[label_] = std::move(data_label_vec);
-            window->widgets.at(label_)->is_data_available.store(true);
-        } else {
-            addBarPlot(label_, data_vec, data_label_vec);
+        if (params.isMember("data_labels") && params["data_labels"].isArray()) {
+            for (auto& elem : params["data_labels"]) {
+                data_label_vec.push_back(elem.asString());
+            }
         }
+        std::lock_guard<std::mutex> lock(network_buffer_mtx[label_]);
+        if (window->isWidgetPresent(label_)) {
+            // is size i = 0, zero out the vals
+            map_vector_double[label_] = std::move(data_vec);
+            // Labels aren't necessary after init
+            if (!data_label_vec.empty()) {
+                map_vector_string[label_] = std::move(data_label_vec);
+            }
+        } else {
+            addBarPlot(label_, std::move(data_vec), std::move(data_label_vec));
+        }
+        window->widgets.at(label_)->is_data_available.store(true);
     };
     widget_updates_fr["button"] = [this](const Json::Value& params) {
         auto label_ = params["id"].asString();

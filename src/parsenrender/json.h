@@ -51,8 +51,7 @@ public:
 
     HttpWindowWrapper(const std::string_view label, const std::string_view host,
                       const std::string_view endpoint, const int port,
-                      const std::string_view connection_type,
-                      const std::string_view auth_token);
+                      const std::string_view connection_type, const std::string_view auth_token);
     std::variant<std::monostate, HttpPoll::Poll, Sse::SSE> connection;
     std::optional<Window::Window> window;
 
@@ -62,9 +61,8 @@ public:
     void addPlot(const std::string& _label, float data,
                  Widgets::Plot<float>::type ptype = Widgets::Plot<float>::type::Line);
 
-    void addBarPlot(const std::string& _label, const std::vector<double>& data,
-                    const std::vector<std::string>& format_labels);
-
+    void addBarPlot(const std::string& _label, std::vector<double>&& data,
+                    std::vector<std::string>&& format_labels);
     void addButton(const std::string& _label, const std::string& endpoint,
                    drogon::HttpMethod method);
 

@@ -150,7 +150,7 @@ public:
         if (isInline) {
             makeInline();
         }
-        if (ImPlot::BeginPlot(label.c_str(), ImVec2(-1.0f, 260.0f), ImPlotFlags_NoTitle)) {
+        if (ImPlot::BeginPlot(label.c_str(), ImVec2(-1.0f, 260.0f) )) {
             // ImPlot::SetupAxes("Category", "Value", ImPlotAxisFlags_AutoFit,
             // ImPlotAxisFlags_AutoFit); Utils::Log::logVec(src_label);
             ImPlot::SetupAxisTicks(ImAxis_X1, pos.data(), label_format_Implot_axis.size(),
