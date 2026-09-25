@@ -319,7 +319,7 @@ Dynamically removes widgets from the window and releases their allocated buffers
 [
   {
     "type": "remove",
-    "target": ["temporary_alert_text", "debug_plot"]
+    "targets": ["temporary_alert_text", "debug_plot"]
   }
 ]
 ```
@@ -408,7 +408,7 @@ The server resolves the alert and updates the table:
 data: [
   {
     "type": "remove",
-    "target": ["Critical Alerts"]
+    "targets": ["Critical Alerts"]
   },
   {
     "id": "cluster_header",

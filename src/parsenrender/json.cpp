@@ -387,10 +387,10 @@ void HttpWindowWrapper::initFRs() {
     ]
     */
     widget_updates_fr["remove"] = [this](const Json::Value& params) {
-        if (!params.isArray()) [[unlikely]] {
-            return;
-        }
-        for (const auto& elem : params["target"]) {
+        // if (!params.isArray()) [[unlikely]] {
+        //     return;
+        // }
+        for (const auto& elem : params["targets"]) {
             auto key = elem.asString();
             window->removeWidget(key);
             network_buffer_mtx.erase(key);
