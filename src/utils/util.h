@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <span>
 
 #include "imgui.h"
 #include "stb_image.h"

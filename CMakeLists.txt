@@ -1,12 +1,49 @@
 cmake_minimum_required(VERSION 3.20)
 project(Sentinel LANGUAGES CXX)
 
-# 1. Find system dependencies (GLFW and OpenGL)
-find_package(glfw3 REQUIRED)
+# 1. System core dependencies
 find_package(OpenGL REQUIRED)
-find_package(Drogon REQUIRED)
-find_package(CURL REQUIRED)
 find_package(Threads REQUIRED)
+if(UNIX AND NOT APPLE)
+    find_package(X11 REQUIRED)
+endif()
+
+include(FetchContent)
+
+# Fetch GLFW
+FetchContent_Declare(
+    glfw
+    GIT_REPOSITORY https://github.com/glfw/glfw.git
+    GIT_TAG 3.4
+)
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+if(UNIX AND NOT APPLE)
+    set(GLFW_BUILD_WAYLAND OFF CACHE BOOL "" FORCE)
+endif()
+FetchContent_MakeAvailable(glfw)
+
+# Fetch CURL
+FetchContent_Declare(
+    curl
+    GIT_REPOSITORY https://github.com/curl/curl.git
+    GIT_TAG curl-8_7_1
+)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(BUILD_CURL_EXE OFF CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(curl)
+
+# Fetch Drogon
+FetchContent_Declare(
+    drogon
+    GIT_REPOSITORY https://github.com/drogonframework/drogon.git
+    GIT_TAG v1.9.8
+)
+set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(BUILD_CTL OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(drogon)
 # 2. Define ImGui Sources
 # We need the core files AND the specific backends for GLFW and OpenGL3
 set(IMGUI_DIR ${CMAKE_SOURCE_DIR}/imgui)
@@ -110,10 +147,16 @@ target_include_directories(sentinel PUBLIC
 target_link_libraries(sentinel PRIVATE
     glfw
     OpenGL::GL
-    Drogon::Drogon
+    drogon
     Threads::Threads
-    CURL::libcurl
+    libcurl
 )
+if(UNIX AND NOT APPLE)
+    target_link_libraries(sentinel PRIVATE X11::X11)
+endif()
+if(WIN32)
+    target_link_libraries(sentinel PRIVATE ws2_32 rpcrt4 bcrypt crypt32 iphlpapi uuid)
+endif()
 
 # Keep runtime files next to the executable for single and multi-config generators.
 add_custom_command(TARGET sentinel POST_BUILD
