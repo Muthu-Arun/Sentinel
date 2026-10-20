@@ -109,21 +109,18 @@ std::function<void(const std::string&, drogon::HttpMethod, const std::string&)>
 Poll::getButtonCallback() {
     auto callback = [this](const std::string& _endpoint, drogon::HttpMethod _method,
                            const std::string& _body) {
-        /*
-        std::string path = remote_url + _endpoint;
-        std::cerr << "Path before request =>";
-        std::cerr << path << '\n';
-        */
         HttpRequestPtr request = HttpRequest::newHttpRequest();
         request->setMethod(_method);
         request->setPath(_endpoint);
-        if (_body.size())
+        if (!_body.empty()) {
             request->setBody(_body);
-        auto [reqRes, resPtr] = client->sendRequest(request);
-        if (reqRes != drogon::ReqResult::Ok) {
-            std::println("Request Failed");
-            std::println("Url => {}\n\n", request->getPath());
         }
+        client->sendRequest(
+            request, [_endpoint](drogon::ReqResult reqRes, const HttpResponsePtr&) {
+                if (reqRes != drogon::ReqResult::Ok) {
+                    std::println("Request Failed for endpoint: {}", _endpoint);
+                }
+            });
     };
     return callback;
 }

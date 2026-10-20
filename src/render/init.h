@@ -1,3 +1,4 @@
+#pragma once
 /*
 This needs to someting like
     render a top menubar,

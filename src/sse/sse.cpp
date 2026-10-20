@@ -76,7 +76,11 @@ SSE::SSE(std::string_view remote_url_, std::string_view endpoint_, int port_,
          std::string_view auth_token_)
     : remote_url(remote_url_), endpoint(endpoint_), port(port_), auth_token(auth_token_) {
     remote = std::format("{}:{}{}", remote_url, port, endpoint);
-    client = drogon::HttpClient::newHttpClient(remote_url, static_cast<uint16_t>(port));
+    if (remote_url.starts_with("http://") || remote_url.starts_with("https://")) {
+        client = drogon::HttpClient::newHttpClient(std::format("{}:{}", remote_url, port));
+    } else {
+        client = drogon::HttpClient::newHttpClient(remote_url, static_cast<uint16_t>(port));
+    }
     curl = curl_easy_init();
     if (!curl) {
         std::println("Error: Can't initialize curl");
@@ -88,24 +92,32 @@ SSE::SSE(std::string_view remote_url_, std::string_view endpoint_, int port_,
     curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);  // enable progress callback
     curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
     curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &abort);
-    struct curl_slist* headers = NULL;
+    struct curl_slist* headers = nullptr;
 
-    authorization_header = std::format("Authorization: {}", auth_token);
-    headers = curl_slist_append(headers, authorization_header.c_str());
-
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    if (!auth_token.empty()) {
+        authorization_header = std::format("Authorization: {}", auth_token);
+        headers = curl_slist_append(headers, authorization_header.c_str());
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    }
 
     connection_thread = std::thread(
-        [](CURL* curl) {
-            curl_easy_perform(curl);
-            curl_easy_cleanup(curl);
+        [](CURL* curl, struct curl_slist* hdrs) {
+            if (curl) {
+                curl_easy_perform(curl);
+                curl_easy_cleanup(curl);
+            }
+            if (hdrs) {
+                curl_slist_free_all(hdrs);
+            }
         },
-        curl);
+        curl, headers);
 }
 
 SSE::~SSE() {
     abort.store(true);
-    connection_thread.join();
+    if (connection_thread.joinable()) {
+        connection_thread.join();
+    }
 }
 void addHeader(const std::unordered_map<std::string, std::string> headers) {}
 std::optional<Json::Value> SSE::getJson() {
@@ -123,16 +135,41 @@ std::optional<Json::Value> SSE::getJson() {
     return temp;
 }
 
+std::function<void(const std::string&, drogon::HttpMethod, const std::string&)>
+SSE::getButtonCallback() {
+    return [this](const std::string& _endpoint, drogon::HttpMethod _method,
+                  const std::string& _body) {
+        drogon::HttpRequestPtr request = drogon::HttpRequest::newHttpRequest();
+        request->setMethod(_method);
+        request->setPath(_endpoint);
+        if (!auth_token.empty()) {
+            request->addHeader("Authorization", auth_token);
+        }
+        if (!_body.empty()) {
+            request->setBody(_body);
+        }
+        client->sendRequest(
+            request, [_endpoint](drogon::ReqResult reqRes, const drogon::HttpResponsePtr&) {
+                if (reqRes != drogon::ReqResult::Ok) {
+                    std::println("Button request failed for endpoint: {}", _endpoint);
+                }
+            });
+    };
+}
+
 void SSE::pollImage(const std::string& _endpoint, std::string& img_buf, std::mutex& img_buf_mtx,
                     std::atomic<bool>& is_new_data_available) {
     drogon::HttpRequestPtr img_request = drogon::HttpRequest::newHttpRequest();
     img_request->setMethod(drogon::HttpMethod::Get);
     img_request->setPath(_endpoint);
+    if (!auth_token.empty()) {
+        img_request->addHeader("Authorization", auth_token);
+    }
 
     client->sendRequest(img_request,
                         [&is_new_data_available, &img_buf, &img_buf_mtx](
                             drogon::ReqResult reqRes, const drogon::HttpResponsePtr& resPtr) {
-                            if (reqRes == drogon::ReqResult::Ok) {
+                            if (reqRes == drogon::ReqResult::Ok && resPtr) {
                                 std::lock_guard<std::mutex> _lock(img_buf_mtx);
                                 img_buf = resPtr->getBody();
                                 is_new_data_available.store(true);

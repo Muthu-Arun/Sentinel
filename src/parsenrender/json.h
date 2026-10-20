@@ -34,7 +34,9 @@ protected:
                                                  std::vector<double>, std::vector<std::string>>>
         vector_buffer_container;
     std::array<char, 250> host{}, host_endpoint{};
-    uint64_t port = 80;
+    std::array<char, 512> auth_buf{};
+    uint64_t port = 8080;
+    bool use_sse = true;
     bool in_init_phase;
 
 public:

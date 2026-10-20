@@ -125,17 +125,25 @@ void HttpWindowWrapper::addButton(const std::string& _label, const std::string& 
         window->addWidget(_label, std::make_unique<Widgets::Button<>>(
                                       _label, endpoint, method,
                                       std::get<HttpPoll::Poll>(connection).getButtonCallback()));
+    } else if (std::holds_alternative<Sse::SSE>(connection)) {
+        window->addWidget(_label, std::make_unique<Widgets::Button<>>(
+                                      _label, endpoint, method,
+                                      std::get<Sse::SSE>(connection).getButtonCallback()));
     }
 }
 
 void HttpWindowWrapper::addImage(const std::string& _label, const std::string& endpoint) {
-    buffer_container[_label].emplace<std::string>(endpoint);
+    buffer_container[_label].emplace<std::string>("");
     network_buffer_mtx[_label];
     window->addWidget(_label, std::make_unique<Widgets::Image<std::string>>(
                                   _label, std::get<std::string>(buffer_container[_label]),
                                   network_buffer_mtx[_label], endpoint));
     if (std::holds_alternative<HttpPoll::Poll>(connection)) {
         std::get<HttpPoll::Poll>(connection)
+            .pollImage(endpoint, std::get<std::string>(buffer_container[_label]),
+                       network_buffer_mtx[_label], window->widgets.at(_label)->is_data_available);
+    } else if (std::holds_alternative<Sse::SSE>(connection)) {
+        std::get<Sse::SSE>(connection)
             .pollImage(endpoint, std::get<std::string>(buffer_container[_label]),
                        network_buffer_mtx[_label], window->widgets.at(_label)->is_data_available);
     }
@@ -151,35 +159,17 @@ void HttpWindowWrapper::addTable(const std::string& _label, std::vector<std::str
                                       vector_buffer_container[_label]),
                                   network_buffer_mtx[_label]));
 }
-/*
-void parseDynamicJson(const Json::Value& root) {
-    if (root.isArray()) {
-    }
-    if (root.isObject()) {
-        // It's a map/dictionary: { "key": "value" }
-        for (std::string& id : root.getMemberNames()) {
-            std::cout << "Key: " << id << " -> ";
-            parseDynamicJson(root[id]);  // Recurse!
-        }
-    } else if (root.isArray()) {
-        // It's a list: [1, 2, 3]
-        for (unsigned int i = 0; i < root.size(); i++) {
-            parseDynamicJson(root[i]);  // Recurse!
-        }
-    } else {
-        // It's a "leaf" (Value): string, int, bool
-        std::cout << "Value: " << root.asString() << std::endl;
-    }
-}
-*/
+
 uint32_t HttpWindowWrapper::window_count = 0;
 
 HttpWindowWrapper::HttpWindowWrapper() : in_init_phase(true) {
     win_idx = window_count++;
     win_label = std::format("Window - {}", win_idx);
     window.emplace(win_label);
-    // host.fill('\0');
-    // host_endpoint.fill('\0');
+    const std::string_view default_host = "127.0.0.1";
+    const std::string_view default_ep = "/events";
+    std::copy(default_host.begin(), default_host.end(), this->host.begin());
+    std::copy(default_ep.begin(), default_ep.end(), this->host_endpoint.begin());
     connection.emplace<std::monostate>();
     initFRs();
 }
@@ -190,12 +180,13 @@ HttpWindowWrapper::HttpWindowWrapper(const std::string_view label, const std::st
     win_idx = window_count++;
     win_label = label;
     window.emplace(win_label);
-    std::copy(host.begin(), host.end(), this->host.begin());
-    std::copy(endpoint.begin(), endpoint.end(), this->host_endpoint.begin());
+    const size_t h_len = std::min(host.size(), this->host.size() - 1);
+    const size_t e_len = std::min(endpoint.size(), this->host_endpoint.size() - 1);
+    std::copy_n(host.begin(), h_len, this->host.begin());
+    std::copy_n(endpoint.begin(), e_len, this->host_endpoint.begin());
     this->port = port;
-    // connection.emplace<HttpPoll::Poll>(this->host.data(), this->host_endpoint.data(),
-    // this->port);
-    if (connection_type == "sse") {
+    this->use_sse = (connection_type == "sse");
+    if (this->use_sse) {
         connection.emplace<Sse::SSE>(host, endpoint, port, "");
     } else {
         connection.emplace<HttpPoll::Poll>(host, endpoint, port);
@@ -211,12 +202,13 @@ HttpWindowWrapper::HttpWindowWrapper(const std::string_view label, const std::st
     win_idx = window_count++;
     win_label = label;
     window.emplace(win_label);
-    std::copy(host.begin(), host.end(), this->host.begin());
-    std::copy(endpoint.begin(), endpoint.end(), this->host_endpoint.begin());
+    const size_t h_len = std::min(host.size(), this->host.size() - 1);
+    const size_t e_len = std::min(endpoint.size(), this->host_endpoint.size() - 1);
+    std::copy_n(host.begin(), h_len, this->host.begin());
+    std::copy_n(endpoint.begin(), e_len, this->host_endpoint.begin());
     this->port = port;
-    // connection.emplace<HttpPoll::Poll>(this->host.data(), this->host_endpoint.data(),
-    // this->port);
-    if (connection_type == "sse") {
+    this->use_sse = (connection_type == "sse");
+    if (this->use_sse) {
         connection.emplace<Sse::SSE>(host, endpoint, port, auth_token);
     } else {
         connection.emplace<HttpPoll::Poll>(host, endpoint, port);
@@ -230,27 +222,18 @@ void HttpWindowWrapper::initFRs() {
             addText(label_, params["data"].asString());
         } else [[likely]] {
             std::lock_guard<std::mutex> lock_(network_buffer_mtx[label_]);
-            // map_string[label_] = params["data"].asString();
             std::get<std::string>(buffer_container[label_]) = params["data"].asString();
             window->widgets.at(label_)->is_data_available.store(true);
         }
     };
-    /*
-    [
-    {
-        id: inline_group_1,
-        widgets: [{}, {}],
-        type: inline
-    }
-    ]
-    */
+
     widget_updates_fr["radial_gauge"] = [this](const Json::Value& params) {
         auto label_ = params["id"].asString();
         if (!window->isWidgetPresent(label_)) {
-            addRadialGauge(label_, params["data"].asFloat(), params["min"].asFloat(),
-                           params["max"].asFloat());
+            const float min_v = params.isMember("min") ? params["min"].asFloat() : 0.0f;
+            const float max_v = params.isMember("max") ? params["max"].asFloat() : 100.0f;
+            addRadialGauge(label_, params["data"].asFloat(), min_v, max_v);
         } else [[likely]] {
-            // map_float[label_] = params["data"].asFloat();
             std::get<std::atomic<float>>(buffer_container[label_]).store(params["data"].asFloat());
             window->widgets.at(label_)->is_data_available.store(true);
         }
@@ -260,7 +243,6 @@ void HttpWindowWrapper::initFRs() {
         if (!window->isWidgetPresent(label_)) {
             addPlot(label_, params["data"].asFloat());
         } else [[likely]] {
-            // map_float[label_] = params["data"].asFloat();
             std::get<std::atomic<float>>(buffer_container[label_]).store(params["data"].asFloat());
             window->widgets.at(label_)->is_data_available.store(true);
         }
@@ -281,9 +263,7 @@ void HttpWindowWrapper::initFRs() {
         }
         std::lock_guard<std::mutex> lock(network_buffer_mtx[label_]);
         if (window->isWidgetPresent(label_)) {
-            // is size i = 0, zero out the vals
             map_vector_double[label_] = std::move(data_vec);
-            // Labels aren't necessary after init
             if (!data_label_vec.empty()) {
                 map_vector_string[label_] = std::move(data_label_vec);
             }
@@ -294,33 +274,49 @@ void HttpWindowWrapper::initFRs() {
     };
     widget_updates_fr["button"] = [this](const Json::Value& params) {
         auto label_ = params["id"].asString();
-        if (params.isMember("method") && params.isMember("endpoint")) {
-            if (window->isWidgetPresent(label_)) {
-                // Do nothing for now, a button does not need an updation
-            } else {
-                std::string endpoint = params["endpoint"].asString(),
-                            method =
-                                params["method"]
-                                    .asString();  // For now assuming all methods are in Upper Case
-                addButton(label_, endpoint,
-                          drogon::HttpMethod::Get);  // Just to test for now NEED TO CHANGE
+        if (params.isMember("endpoint")) {
+            if (!window->isWidgetPresent(label_)) {
+                const std::string endpoint = params["endpoint"].asString();
+                std::string method_str =
+                    params.isMember("method") ? params["method"].asString() : "GET";
+                for (char& ch : method_str) {
+                    ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+                }
+                drogon::HttpMethod http_method = drogon::HttpMethod::Get;
+                if (method_str == "POST") {
+                    http_method = drogon::HttpMethod::Post;
+                } else if (method_str == "PUT") {
+                    http_method = drogon::HttpMethod::Put;
+                } else if (method_str == "DELETE") {
+                    http_method = drogon::HttpMethod::Delete;
+                } else if (method_str == "PATCH") {
+                    http_method = drogon::HttpMethod::Patch;
+                } else if (method_str == "HEAD") {
+                    http_method = drogon::HttpMethod::Head;
+                } else if (method_str == "OPTIONS") {
+                    http_method = drogon::HttpMethod::Options;
+                }
+                addButton(label_, endpoint, http_method);
             }
         }
     };
     widget_updates_fr["image"] = [this](const Json::Value& params) {
         auto label_ = params["id"].asString();
         if (params.isMember("endpoint")) {
+            const std::string endpoint = params["endpoint"].asString();
             if (window->isWidgetPresent(label_)) {
-                std::string endpoint = params["endpoint"].asString();
                 if (std::holds_alternative<HttpPoll::Poll>(connection)) {
                     std::get<HttpPoll::Poll>(connection)
                         .pollImage(endpoint, std::get<std::string>(buffer_container[label_]),
                                    network_buffer_mtx[label_],
                                    window->widgets.at(label_)->is_data_available);
+                } else if (std::holds_alternative<Sse::SSE>(connection)) {
+                    std::get<Sse::SSE>(connection)
+                        .pollImage(endpoint, std::get<std::string>(buffer_container[label_]),
+                                   network_buffer_mtx[label_],
+                                   window->widgets.at(label_)->is_data_available);
                 }
-                // TODO Need to implement for SSE later
             } else {
-                std::string endpoint = params["endpoint"].asString();
                 addImage(label_, endpoint);
             }
         }
@@ -329,7 +325,6 @@ void HttpWindowWrapper::initFRs() {
         auto label_ = params["id"].asString();
         std::vector<Widgets::Table::tableRowContainer> rows_vector;
         try {
-            // expected json like {data: [[r1c1, r1,c2], [r2, c1, r2c2]]}
             const auto& rows = params["data"];
             for (const auto& row : rows) {
                 Widgets::Table::tableRowContainer temp_row;
@@ -371,50 +366,29 @@ void HttpWindowWrapper::initFRs() {
                     headers.emplace_back(header.asString());
                 }
                 addTable(label_, std::move(headers), std::move(rows_vector));
-                // to test
-                window->widgets.at(label_)->is_data_available.store(true);
             } catch (const std::exception& e) {
                 std::println("Error at parsing table json header{}", e.what());
             }
         }
     };
-    /*
-    [
-    {
-        target: [target_1, target_2],
-        type: remove
-    }
-    ]
-    */
+
     widget_updates_fr["remove"] = [this](const Json::Value& params) {
-        // if (!params.isArray()) [[unlikely]] {
-        //     return;
-        // }
-        for (const auto& elem : params["targets"]) {
+        const Json::Value& targets =
+            params.isMember("targets") ? params["targets"] : params["target"];
+        if (!targets.isArray()) {
+            return;
+        }
+        for (const auto& elem : targets) {
             auto key = elem.asString();
             window->removeWidget(key);
             network_buffer_mtx.erase(key);
-            // Since keys are unique instead of checking just erasing in all of them
-            // As these buffers mostlikey be removed as the json parsing and updating will probably
-            // remain single threaded
-            // map_float.erase(key);
-            // map_int.erase(key);
-            // map_string.erase(key);
             buffer_container.erase(key);
             vector_buffer_container.erase(key);
             map_vector_double.erase(key);
             map_vector_string.erase(key);
         }
     };
-    /*
-    [
-    {
-        id: inline_group_1,
-        widgets: [{}, {}],
-        type: inline
-    }
-    ]
-    */
+
     widget_updates_fr["inline"] = [this](const Json::Value& params) {
         const std::string label_ = params["id"].asString();
         std::println("In Inline widget construction, parent - {}", label_);
@@ -424,7 +398,9 @@ void HttpWindowWrapper::initFRs() {
             for (const auto& widget : widgets) {
                 const std::string widget_id = widget["id"].asString();
                 widget_updates_fr.at(widget["type"].asString())(widget);
-                window->widgets.at(widget_id)->isInline = !is_first_widget;
+                if (window->isWidgetPresent(widget_id)) {
+                    window->widgets.at(widget_id)->isInline = !is_first_widget;
+                }
                 is_first_widget = false;
                 std::println("Inline widget {} constructed with parent {}", widget_id, label_);
             }
@@ -468,29 +444,103 @@ void HttpWindowWrapper::parseJSON() {
 }
 
 void HttpWindowWrapper::renderHeader() {
-    ImGui::SetNextWindowSize(ImVec2(560.0f, 440.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(720.0f, 560.0f), ImGuiCond_FirstUseEver);
     ImGui::Begin(win_label.c_str());
+
     if (in_init_phase) [[unlikely]] {
-        ImGui::TextDisabled("CONNECTION SETUP");
+        if (Widgets::g_FontBold) {
+            ImGui::PushFont(Widgets::g_FontBold);
+        }
+        ImGui::TextColored(ImVec4(0.19f, 0.78f, 0.86f, 1.0f), "NEW STREAM CONNECTION");
+        if (Widgets::g_FontBold) {
+            ImGui::PopFont();
+        }
+        ImGui::TextDisabled("Configure a server-driven UI endpoint (SSE or HTTP Poll)");
+        ImGui::Separator();
         ImGui::Spacing();
-        // ImGui::SetNextItemWidth(-FLT_MIN);
-        ImGui::InputText("Host URL", host.data(), 250);
-        // ImGui::SetNextItemWidth(-FLT_MIN);
-        ImGui::InputText("Host Endpoint", host_endpoint.data(), 250);
-        // ImGui::SetNextItemWidth(-FLT_MIN);
-        ImGui::InputScalar("Port", ImGuiDataType_U64, &port);
+
+        ImGui::TextUnformatted("Host Address");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        ImGui::InputText("##HostURL", host.data(), host.size());
+
         ImGui::Spacing();
-        if (ImGui::Button("Connect", ImVec2(-FLT_MIN, 38.0f))) {
-            connection.emplace<HttpPoll::Poll>(host.data(), host_endpoint.data(), port);
+        ImGui::TextUnformatted("Endpoint Path");
+        ImGui::SetNextItemWidth(-FLT_MIN);
+        ImGui::InputText("##HostEndpoint", host_endpoint.data(), host_endpoint.size());
+
+        ImGui::Spacing();
+        ImGui::TextUnformatted("Port");
+        ImGui::SetNextItemWidth(160.0f);
+        ImGui::InputScalar("##Port", ImGuiDataType_U64, &port);
+
+        ImGui::Spacing();
+        ImGui::TextUnformatted("Transport Protocol");
+        if (ImGui::RadioButton("Server-Sent Events (SSE)", use_sse)) {
+            use_sse = true;
+        }
+        ImGui::SameLine(0.0f, 20.0f);
+        if (ImGui::RadioButton("HTTP Polling", !use_sse)) {
+            use_sse = false;
+        }
+
+        if (use_sse) {
+            ImGui::Spacing();
+            ImGui::TextUnformatted("Authorization Header (Optional)");
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::InputText("##AuthToken", auth_buf.data(), auth_buf.size());
+        }
+
+        ImGui::Spacing();
+        ImGui::Spacing();
+        if (ImGui::Button("Connect to Endpoint", ImVec2(-FLT_MIN, 40.0f))) {
+            auth_token = auth_buf.data();
+            if (use_sse) {
+                connection.emplace<Sse::SSE>(host.data(), host_endpoint.data(),
+                                             static_cast<int>(port), auth_token);
+            } else {
+                connection.emplace<HttpPoll::Poll>(host.data(), host_endpoint.data(),
+                                                   static_cast<int>(port));
+            }
             in_init_phase = false;
             ImGui::End();
             return;
         }
     }
+
     if (std::holds_alternative<std::monostate>(connection)) {
         ImGui::End();
         return;
     }
+
+    // Connection status header bar inside the window
+    {
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        const ImVec2 p = ImGui::GetCursorScreenPos();
+        const bool is_sse = std::holds_alternative<Sse::SSE>(connection);
+        const ImU32 dot_col =
+            is_sse ? IM_COL32(38, 198, 218, 255) : IM_COL32(102, 187, 106, 255);
+        dl->AddCircleFilled(ImVec2(p.x + 6.0f, p.y + 9.0f), 4.5f, dot_col);
+        ImGui::Dummy(ImVec2(14.0f, 18.0f));
+        ImGui::SameLine(0.0f, 4.0f);
+        ImGui::TextColored(
+            is_sse ? ImVec4(0.19f, 0.78f, 0.86f, 1.0f) : ImVec4(0.40f, 0.73f, 0.42f, 1.0f),
+            "%s", is_sse ? "SSE" : "POLL");
+        ImGui::SameLine(0.0f, 8.0f);
+        ImGui::TextDisabled("%s:%llu%s", host.data(), static_cast<unsigned long long>(port),
+                            host_endpoint.data());
+
+        const std::string count_str =
+            std::format("{} widgets", window ? window->widgets.size() : 0);
+        const float count_w = ImGui::CalcTextSize(count_str.c_str()).x;
+        const float avail = ImGui::GetWindowContentRegionMax().x;
+        if (avail > count_w + 220.0f) {
+            ImGui::SameLine(avail - count_w);
+            ImGui::TextDisabled("%s", count_str.c_str());
+        }
+        ImGui::Separator();
+        ImGui::Spacing();
+    }
+
     if (std::holds_alternative<Sse::SSE>(connection)) {
         if (std::get<Sse::SSE>(connection).is_data_available()) {
             parseJSON();
@@ -500,7 +550,21 @@ void HttpWindowWrapper::renderHeader() {
         parseJSON();
         std::get<HttpPoll::Poll>(connection).parsed_data();  //  is_data_available -> false
     }
-    window->render();
+
+    if (window->widgets.empty()) {
+        const ImVec2 avail = ImGui::GetContentRegionAvail();
+        const float offset_y = std::max(24.0f, avail.y * 0.38f);
+        ImGui::Dummy(ImVec2(0.0f, offset_y));
+        const char* msg = "Listening for incoming telemetry events...";
+        const float tw = ImGui::CalcTextSize(msg).x;
+        if (avail.x > tw) {
+            ImGui::SetCursorPosX((avail.x - tw) * 0.5f + ImGui::GetCursorPosX());
+        }
+        ImGui::TextDisabled("%s", msg);
+    } else {
+        window->render();
+    }
+
     ImGui::End();
 }
 

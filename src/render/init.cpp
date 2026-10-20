@@ -32,12 +32,16 @@ JSON Config should look something like this
 
 void init() {
     simdjson::ondemand::parser parser;
-    simdjson::padded_string json = simdjson::padded_string::load("sentinel.json");
-    simdjson::ondemand::document doc = parser.iterate(json);
     try {
+        std::string config_path = "sentinel.json";
+        if (!std::filesystem::exists(config_path) &&
+            std::filesystem::exists("../sentinel.json")) {
+            config_path = "../sentinel.json";
+        }
+        simdjson::padded_string json = simdjson::padded_string::load(config_path);
+        simdjson::ondemand::document doc = parser.iterate(json);
         for (auto window : doc.get_array()) {
-            // auto window_obj = window->get_object();
-            std::string_view authorization; //auth is an optional elem
+            std::string_view authorization;  // auth is an optional elem
             std::string_view window_id = window["window"];
             std::string_view host = window["host"];
             std::string_view endpoint = window["endpoint"];
@@ -58,30 +62,42 @@ void init() {
         poll_windows.emplace_back(std::make_unique<ParseJson::HttpWindowWrapper>());
     }
 }
-/*
-std::optional<simdjson::simdjson_result<simdjson::ondemand::document>> loadConfig() {
-    std::ifstream configfile("sentinel.json");
-    if (configfile) {
-        std::stringstream buffer_content;
-        buffer_content << configfile.rdbuf();
-        std::string content = buffer_content.str();
 
-        simdjson::ondemand::parser parser;
-        auto doc = parser.iterate(content);
-        return doc;
-    }
-    return std::nullopt;
-}
-*/
 void renderWindows() {
-    /*
+    ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(),
+                                 ImGuiDockNodeFlags_PassthruCentralNode);
+
     if (ImGui::BeginMainMenuBar()) {
-        if (ImGui::BeginMenu("reset")) {
-            clean();
-            init();
+        ImGui::TextColored(ImVec4(0.19f, 0.78f, 0.86f, 1.0f), "SENTINEL");
+        ImGui::SameLine(0.0f, 16.0f);
+        if (ImGui::BeginMenu("Connections")) {
+            if (ImGui::MenuItem("New Connection Window")) {
+                poll_windows.emplace_back(std::make_unique<ParseJson::HttpWindowWrapper>());
+            }
+            if (ImGui::MenuItem("Reload sentinel.json")) {
+                clean();
+                init();
+            }
+            ImGui::EndMenu();
         }
+        ImGui::SameLine(0.0f, 12.0f);
+        if (ImGui::SmallButton("+ Add Window")) {
+            poll_windows.emplace_back(std::make_unique<ParseJson::HttpWindowWrapper>());
+        }
+
+        const ImGuiIO& io = ImGui::GetIO();
+        const std::string status_str =
+            std::format("Windows: {}  |  {:.0f} FPS ({:.2f} ms)", poll_windows.size(),
+                        io.Framerate, 1000.0f / std::max(1.0f, io.Framerate));
+        const float status_w = ImGui::CalcTextSize(status_str.c_str()).x;
+        const float avail_w = ImGui::GetWindowWidth();
+        if (avail_w > status_w + 260.0f) {
+            ImGui::SameLine(avail_w - status_w - 16.0f);
+            ImGui::TextDisabled("%s", status_str.c_str());
+        }
+        ImGui::EndMainMenuBar();
     }
-    */
+
     for (auto& window : poll_windows) {
         window->renderHeader();
     }

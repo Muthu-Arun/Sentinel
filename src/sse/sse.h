@@ -1,3 +1,4 @@
+#pragma once
 // Handles server send events and parsing, try not to modify the http polling
 #include <curl/curl.h>
 #include <drogon/HttpClient.h>
@@ -6,11 +7,14 @@
 
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <queue>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <unordered_map>
 namespace Sse {
 struct UserData {
@@ -30,7 +34,7 @@ protected:
     std::string remote_url, endpoint, remote, auth_token, authorization_header;
     uint64_t port;
     std::atomic<bool> abort = false;
-    CURL* curl;
+    CURL* curl = nullptr;
     // have a drogon client for standard http requests
     drogon::HttpClientPtr client;
 
@@ -38,6 +42,7 @@ public:
     SSE(std::string_view remote_url_, std::string_view endpoint_, int port, std::string_view auth_token_);
     bool is_data_available() const noexcept;
     void pollImage(const std::string& endpoint, std::string& img_buf, std::mutex& img_buf_mtx, std::atomic<bool>& is_new_data_available);
+    std::function<void(const std::string&, drogon::HttpMethod, const std::string&)> getButtonCallback();
     void addHeader(const std::unordered_map<std::string, std::string> headers);
     std::optional<Json::Value> getJson();
     ~SSE();

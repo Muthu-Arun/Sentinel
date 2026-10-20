@@ -73,9 +73,18 @@ cmake --build build
 
 ### Windows
 
-Install Visual Studio 2022 with the **Desktop development with C++** workload, CMake, and
-[vcpkg](https://learn.microsoft.com/vcpkg/get_started/get-started). The included manifest
-installs the required libraries:
+Install Visual Studio 2022 with the **Desktop development with C++** workload, CMake, and Git.
+
+#### Option 1: Standalone Build (CMake FetchContent, no external package manager required)
+CMake will automatically fetch and build GLFW, libcurl (using native Windows Schannel TLS), ZLIB, JsonCpp, and Drogon:
+
+```powershell
+cmake -S . -B build -A x64
+cmake --build build --config Release
+```
+
+#### Option 2: Using vcpkg
+If you prefer using [vcpkg](https://learn.microsoft.com/vcpkg/get_started/get-started), the included `vcpkg.json` manifest installs the required dependencies and CMake automatically links them:
 
 ```powershell
 cmake -S . -B build -A x64 `
@@ -83,8 +92,7 @@ cmake -S . -B build -A x64 `
 cmake --build build --config Release
 ```
 
-The executable and its required `fonts` and `sentinel.json` runtime files are placed together
-in the selected build configuration's output directory.
+The executable and its required `fonts` and `sentinel.json` runtime files are copied automatically into the selected build configuration's output directory (`build/Release/` or `build/Debug/`).
 
 ### Portable vcpkg Build
 

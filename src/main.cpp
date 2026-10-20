@@ -1,3 +1,4 @@
+#include <curl/curl.h>
 #include <GLFW/glfw3.h>
 #include <stdio.h>
 
@@ -16,10 +17,13 @@
 #include "widget.h"
 
 int main() {
-    // 1. Setup GLFW
+    // 1. Setup CURL (initializes WinSock on Windows) and GLFW
+    curl_global_init(CURL_GLOBAL_DEFAULT);
     HttpPoll::init();
-    if (!glfwInit())
+    if (!glfwInit()) {
+        curl_global_cleanup();
         return 1;
+    }
 
     // GL+GLSL versions
     const char* glsl_version = "#version 130";
@@ -46,21 +50,24 @@ int main() {
     config.OversampleV = 1;
     config.PixelSnapH = true;
 
-    // Load the Bold Font (Size 16.0f)
-    // Load the Regular Font (Size 16.0f)
-    const char* roboto_bold = "fonts/Roboto-Bold.ttf";
-    const char* roboto_regular = "fonts/Roboto-Regular.ttf";
-    if (std::filesystem::exists(std::filesystem::path(roboto_bold)) &&
-        std::filesystem::exists(std::filesystem::path(roboto_regular))) {
-        Widgets::g_FontBold = io.Fonts->AddFontFromFileTTF(roboto_bold, 20.0f, &config);
-        Widgets::g_FontRegular = io.Fonts->AddFontFromFileTTF(roboto_regular, 16.0f, &config);
+    // Load the Regular Font (Size 16.0f) first so it becomes the default UI font,
+    // followed by the Bold Font (Size 20.0f) for headings and gauges
+    std::filesystem::path roboto_regular = "fonts/Roboto-Regular.ttf";
+    std::filesystem::path roboto_bold = "fonts/Roboto-Bold.ttf";
+    if (!std::filesystem::exists(roboto_regular) &&
+        std::filesystem::exists("../fonts/Roboto-Regular.ttf")) {
+        roboto_regular = "../fonts/Roboto-Regular.ttf";
+        roboto_bold = "../fonts/Roboto-Bold.ttf";
+    }
+    if (std::filesystem::exists(roboto_regular) && std::filesystem::exists(roboto_bold)) {
+        Widgets::g_FontRegular =
+            io.Fonts->AddFontFromFileTTF(roboto_regular.string().c_str(), 16.0f, &config);
+        Widgets::g_FontBold =
+            io.Fonts->AddFontFromFileTTF(roboto_bold.string().c_str(), 20.0f, &config);
+        io.FontDefault = Widgets::g_FontRegular;
     }
 
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-    // Build the font atlas (your backend usually does this automatically,
-    // but if you are doing custom engine integration, call this)
-    // io.Fonts->Build();
-    // Setup Dear ImGui style
     ImGui::StyleColorsDark();
 
     // Setup Platform/Renderer backends
@@ -103,6 +110,7 @@ int main() {
 
     glfwDestroyWindow(window);
     glfwTerminate();
+    curl_global_cleanup();
 
     return 0;
 }
