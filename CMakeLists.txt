@@ -1,9 +1,27 @@
 cmake_minimum_required(VERSION 3.20)
+
+# Default to static triplet when using vcpkg on Windows so portable binaries don't require external DLLs
+if(WIN32 AND NOT DEFINED VCPKG_TARGET_TRIPLET)
+    set(VCPKG_TARGET_TRIPLET "x64-windows-static" CACHE STRING "vcpkg default target triplet for fully static portable build")
+endif()
+
+# Enable CMP0091 across subprojects fetched via FetchContent so CMAKE_MSVC_RUNTIME_LIBRARY applies cleanly
+set(CMAKE_POLICY_DEFAULT_CMP0091 NEW)
+
 project(Sentinel LANGUAGES C CXX)
 
 # Use static MSVC runtime (/MT, /MTd) on Windows so VC++ Redistributable DLLs are not required
 if(MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    set(OPENSSL_MSVC_STATIC_CRT ON CACHE BOOL "" FORCE)
+    # Ensure any C/C++ flags in subprojects default to static runtime (/MT) rather than /MD
+    foreach(lang C CXX)
+        foreach(suffix "" _DEBUG _RELEASE _MINSIZEREL _RELWITHDEBINFO)
+            if(DEFINED CMAKE_${lang}_FLAGS${suffix})
+                string(REPLACE "/MD" "/MT" CMAKE_${lang}_FLAGS${suffix} "${CMAKE_${lang}_FLAGS${suffix}}")
+            endif()
+        endforeach()
+    endforeach()
 endif()
 
 # 1. System core dependencies
@@ -45,6 +63,7 @@ if(NOT glfw3_FOUND AND NOT TARGET glfw)
     set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
     set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(USE_MSVC_RUNTIME_LIBRARY_DLL OFF CACHE BOOL "" FORCE)
     if(UNIX AND NOT APPLE)
         set(GLFW_BUILD_WAYLAND OFF CACHE BOOL "" FORCE)
     endif()
@@ -68,12 +87,14 @@ if(NOT Drogon_FOUND)
             GIT_TAG v1.3.1
         )
         set(ZLIB_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+        set(SKIP_BUILD_SHARED ON CACHE BOOL "" FORCE)
+        set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
         FetchContent_MakeAvailable(zlib)
         if(TARGET zlibstatic AND NOT TARGET ZLIB::ZLIB)
             target_include_directories(zlibstatic PUBLIC "${zlib_SOURCE_DIR}" "${zlib_BINARY_DIR}")
             add_library(ZLIB::ZLIB ALIAS zlibstatic)
             set(ZLIB_FOUND TRUE CACHE BOOL "" FORCE)
-            set(ZLIB_INCLUDE_DIR "${zlib_SOURCE_DIR};${zlib_BINARY_DIR}" CACHE PATH "" FORCE)
+            set(ZLIB_INCLUDE_DIR "${zlib_SOURCE_DIR}" CACHE PATH "" FORCE)
             set(ZLIB_INCLUDE_DIRS "${zlib_SOURCE_DIR};${zlib_BINARY_DIR}" CACHE PATH "" FORCE)
             set(ZLIB_LIBRARY zlibstatic CACHE STRING "" FORCE)
             set(ZLIB_LIBRARIES zlibstatic CACHE STRING "" FORCE)
@@ -91,6 +112,9 @@ if(NOT CURL_FOUND AND NOT TARGET CURL::libcurl AND NOT TARGET libcurl)
     set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
     set(BUILD_CURL_EXE OFF CACHE BOOL "" FORCE)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    set(BUILD_STATIC_LIBS ON CACHE BOOL "" FORCE)
+    set(ENABLE_CURL_MANUAL OFF CACHE BOOL "" FORCE)
+    set(BUILD_LIBCURL_DOCS OFF CACHE BOOL "" FORCE)
     set(CURL_DISABLE_LDAP ON CACHE BOOL "" FORCE)
     set(CURL_DISABLE_LDAPS ON CACHE BOOL "" FORCE)
     set(CURL_USE_LIBPSL OFF CACHE BOOL "" FORCE)
@@ -103,6 +127,9 @@ if(NOT CURL_FOUND AND NOT TARGET CURL::libcurl AND NOT TARGET libcurl)
         # Use native Windows Schannel TLS so OpenSSL is not required on Windows
         set(CURL_USE_SCHANNEL ON CACHE BOOL "" FORCE)
         set(CURL_USE_OPENSSL OFF CACHE BOOL "" FORCE)
+        if(MSVC)
+            set(CURL_STATIC_CRT ON CACHE BOOL "" FORCE)
+        endif()
     endif()
     FetchContent_MakeAvailable(curl)
 endif()
@@ -121,6 +148,9 @@ if(NOT Drogon_FOUND AND NOT TARGET Drogon::Drogon AND NOT TARGET drogon)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
     set(BUILD_STATIC_LIBS ON CACHE BOOL "" FORCE)
     set(BUILD_OBJECT_LIBS OFF CACHE BOOL "" FORCE)
+    if(MSVC)
+        set(JSONCPP_STATIC_WINDOWS_RUNTIME ON CACHE BOOL "" FORCE)
+    endif()
     FetchContent_MakeAvailable(jsoncpp)
     file(MAKE_DIRECTORY "${jsoncpp_BINARY_DIR}/include/json")
 
@@ -155,6 +185,13 @@ if(NOT Drogon_FOUND AND NOT TARGET Drogon::Drogon AND NOT TARGET drogon)
     set(BUILD_BROTLI OFF CACHE BOOL "" FORCE)
     set(BUILD_YAML_CONFIG OFF CACHE BOOL "" FORCE)
     set(BUILD_C-ARES OFF CACHE BOOL "" FORCE)
+    if(WIN32 AND NOT SENTINEL_PREFER_SYSTEM_DEPS)
+        if(NOT OpenSSL_FOUND AND NOT OPENSSL_FOUND)
+            if(NOT DEFINED TRANTOR_USE_TLS)
+                set(TRANTOR_USE_TLS "none" CACHE STRING "" FORCE)
+            endif()
+        endif()
+    endif()
     FetchContent_MakeAvailable(drogon)
 endif()
 
@@ -231,6 +268,7 @@ if(WIN32)
         NOMINMAX
         _CRT_SECURE_NO_WARNINGS
         _WIN32_WINNT=0x0A00
+        CURL_STATICLIB
     )
 endif()
 
@@ -239,8 +277,10 @@ target_compile_options(sentinel PRIVATE
     $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall;-Wextra>
 )
 
-# Statically link libstdc++ and libgcc on Linux / MinGW so target machines don't need a C++23 runtime installed
-if((UNIX AND NOT APPLE) OR MINGW)
+# Statically link runtime libraries so target machines don't need runtime DLLs installed
+if(MINGW)
+    target_link_options(sentinel PRIVATE -static)
+elseif(UNIX AND NOT APPLE)
     target_link_options(sentinel PRIVATE -static-libstdc++ -static-libgcc)
 endif()
 
@@ -289,6 +329,9 @@ if(WIN32)
         rpcrt4
         bcrypt
         crypt32
+        secur32
+        wldap32
+        normaliz
         iphlpapi
         shlwapi
         advapi32

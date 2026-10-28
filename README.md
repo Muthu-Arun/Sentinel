@@ -83,16 +83,17 @@ cmake -S . -B build -A x64
 cmake --build build --config Release
 ```
 
-#### Option 2: Using vcpkg
-If you prefer using [vcpkg](https://learn.microsoft.com/vcpkg/get_started/get-started), the included `vcpkg.json` manifest installs the required dependencies and CMake automatically links them:
+#### Option 2: Using vcpkg (Fully Static Portable Build)
+If you prefer using [vcpkg](https://learn.microsoft.com/vcpkg/get_started/get-started), the included `vcpkg.json` manifest installs the required dependencies. CMake defaults to the static triplet `x64-windows-static` on Windows so the final executable has no DLL dependencies and does not require the VC++ Redistributable:
 
 ```powershell
 cmake -S . -B build -A x64 `
-  -DCMAKE_TOOLCHAIN_FILE=C:/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake
+  -DCMAKE_TOOLCHAIN_FILE=C:/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake `
+  -DVCPKG_TARGET_TRIPLET=x64-windows-static
 cmake --build build --config Release
 ```
 
-The executable and its required `fonts` and `sentinel.json` runtime files are copied automatically into the selected build configuration's output directory (`build/Release/` or `build/Debug/`).
+The standalone executable and its required `fonts` directory and `sentinel.json` config are copied automatically into the output directory (`build/Release/` or `build/Debug/`). Both Option 1 and Option 2 produce self-contained binaries that can run on any other 64-bit Windows machine.
 
 ### Portable vcpkg Build
 
