@@ -75,12 +75,16 @@ if(NOT Drogon_FOUND)
     if(NOT WIN32)
         set(_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
         set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-        find_package(ZLIB QUIET)
+        if(NOT ZLIB_LIBRARY STREQUAL "zlibstatic")
+            find_package(ZLIB QUIET)
+        endif()
         set(CMAKE_FIND_LIBRARY_SUFFIXES ${_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES})
     else()
-        find_package(ZLIB QUIET)
+        if(NOT ZLIB_LIBRARY STREQUAL "zlibstatic")
+            find_package(ZLIB QUIET)
+        endif()
     endif()
-    if(NOT ZLIB_FOUND)
+    if(NOT ZLIB_FOUND OR ZLIB_LIBRARY STREQUAL "zlibstatic")
         FetchContent_Declare(
             zlib
             GIT_REPOSITORY https://github.com/madler/zlib.git
@@ -92,7 +96,11 @@ if(NOT Drogon_FOUND)
         FetchContent_MakeAvailable(zlib)
         if(TARGET zlibstatic AND NOT TARGET ZLIB::ZLIB)
             target_include_directories(zlibstatic PUBLIC "${zlib_SOURCE_DIR}" "${zlib_BINARY_DIR}")
-            add_library(ZLIB::ZLIB ALIAS zlibstatic)
+            add_library(ZLIB::ZLIB INTERFACE IMPORTED)
+            set_target_properties(ZLIB::ZLIB PROPERTIES
+                INTERFACE_INCLUDE_DIRECTORIES "${zlib_SOURCE_DIR};${zlib_BINARY_DIR}"
+                INTERFACE_LINK_LIBRARIES zlibstatic
+            )
             set(ZLIB_FOUND TRUE CACHE BOOL "" FORCE)
             set(ZLIB_INCLUDE_DIR "${zlib_SOURCE_DIR}" CACHE PATH "" FORCE)
             set(ZLIB_INCLUDE_DIRS "${zlib_SOURCE_DIR};${zlib_BINARY_DIR}" CACHE PATH "" FORCE)
@@ -343,9 +351,14 @@ if(WIN32)
 endif()
 
 # Keep runtime files next to the executable for single and multi-config generators.
+set(_COPY_SENTINEL_JSON "")
+if(EXISTS "${CMAKE_SOURCE_DIR}/sentinel.json")
+    set(_COPY_SENTINEL_JSON COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/sentinel.json" "$<TARGET_FILE_DIR:sentinel>/sentinel.json")
+endif()
 add_custom_command(TARGET sentinel POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${CMAKE_SOURCE_DIR}/fonts" "$<TARGET_FILE_DIR:sentinel>/fonts"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "${CMAKE_SOURCE_DIR}/sentinel.json" "$<TARGET_FILE_DIR:sentinel>/sentinel.json"
+    ${_COPY_SENTINEL_JSON}
+
 )
