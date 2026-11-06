@@ -1,5 +1,5 @@
-#include <curl/curl.h>
 #include <GLFW/glfw3.h>
+#include <curl/curl.h>
 #include <stdio.h>
 
 #include <atomic>
@@ -17,11 +17,11 @@
 #include "widget.h"
 
 constexpr unsigned char roboto_regular[] = {
-    #embed  "fonts/Roboto-Regular.ttf"
+#embed "fonts/Roboto-Regular.ttf"
 };
 
 constexpr unsigned char roboto_bold[] = {
-    #embed "fonts/Roboto-Bold.ttf"
+#embed "fonts/Roboto-Bold.ttf"
 };
 int main() {
     // 1. Setup CURL (initializes WinSock on Windows) and GLFW
@@ -68,14 +68,16 @@ int main() {
     //     roboto_bold = "../fonts/Roboto-Bold.ttf";
     // }
     // if (std::filesystem::exists(roboto_regular) && std::filesystem::exists(roboto_bold)) {
-        // Widgets::g_FontRegular =
-        //     io.Fonts->AddFontFromFileTTF(roboto_regular.string().c_str(), 16.0f, &config);
-        Widgets::g_FontRegular =
-            io.Fonts->AddFontFromMemoryTTF(const_cast<void*>(static_cast<const void*>(roboto_regular)), sizeof(roboto_regular), 16.0f, &config);
-        Widgets::g_FontBold =
+    // Widgets::g_FontRegular =
+    //     io.Fonts->AddFontFromFileTTF(roboto_regular.string().c_str(), 16.0f, &config);
+    Widgets::g_FontRegular =
+        io.Fonts->AddFontFromMemoryTTF(const_cast<void*>(static_cast<const void*>(roboto_regular)),
+                                       sizeof(roboto_regular), 16.0f, &config);
+    Widgets::g_FontBold =
         //     io.Fonts->AddFontFromFileTTF(roboto_bold.string().c_str(), 20.0f, &config);
-            io.Fonts->AddFontFromMemoryTTF(const_cast<void*>(static_cast<const void*>(roboto_bold)), sizeof(roboto_bold), 16.0f, &config);
-        io.FontDefault = Widgets::g_FontRegular;
+        io.Fonts->AddFontFromMemoryTTF(const_cast<void*>(static_cast<const void*>(roboto_bold)),
+                                       sizeof(roboto_bold), 16.0f, &config);
+    io.FontDefault = Widgets::g_FontRegular;
     // }
 
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;

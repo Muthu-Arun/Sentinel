@@ -261,16 +261,16 @@ void HttpWindowWrapper::initFRs() {
                 data_label_vec.push_back(elem.asString());
             }
         }
-        std::lock_guard<std::mutex> lock(network_buffer_mtx[label_]);
         if (window->isWidgetPresent(label_)) {
+            std::lock_guard<std::mutex> lock(network_buffer_mtx[label_]);
             map_vector_double[label_] = std::move(data_vec);
             if (!data_label_vec.empty()) {
                 map_vector_string[label_] = std::move(data_label_vec);
             }
+            window->widgets.at(label_)->is_data_available.store(true);
         } else {
             addBarPlot(label_, std::move(data_vec), std::move(data_label_vec));
         }
-        window->widgets.at(label_)->is_data_available.store(true);
     };
     widget_updates_fr["button"] = [this](const Json::Value& params) {
         auto label_ = params["id"].asString();
