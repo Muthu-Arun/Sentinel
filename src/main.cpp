@@ -16,13 +16,18 @@
 #include "poll.h"
 #include "widget.h"
 
+#if defined(__has_embed)
+
 constexpr unsigned char roboto_regular[] = {
-#embed "fonts/Roboto-Regular.ttf"
+#embed "../fonts/Roboto-Regular.ttf"
 };
 
 constexpr unsigned char roboto_bold[] = {
-#embed "fonts/Roboto-Bold.ttf"
+#embed "../fonts/Roboto-Bold.ttf"
 };
+
+#endif
+
 int main() {
     // 1. Setup CURL (initializes WinSock on Windows) and GLFW
     curl_global_init(CURL_GLOBAL_DEFAULT);
@@ -56,20 +61,10 @@ int main() {
     config.OversampleH = 3;  // Renders the font at 3x horizontal resolution, then scales down
     config.OversampleV = 1;
     config.PixelSnapH = true;
+
+#if defined(__has_embed)
     config.FontDataOwnedByAtlas = false;
 
-    // Load the Regular Font (Size 16.0f) first so it becomes the default UI font,
-    // followed by the Bold Font (Size 20.0f) for headings and gauges
-    // std::filesystem::path roboto_regular = "fonts/Roboto-Regular.ttf";
-    // std::filesystem::path roboto_bold = "fonts/Roboto-Bold.ttf";
-    // if (!std::filesystem::exists(roboto_regular) &&
-    //     std::filesystem::exists("../fonts/Roboto-Regular.ttf")) {
-    //     roboto_regular = "../fonts/Roboto-Regular.ttf";
-    //     roboto_bold = "../fonts/Roboto-Bold.ttf";
-    // }
-    // if (std::filesystem::exists(roboto_regular) && std::filesystem::exists(roboto_bold)) {
-    // Widgets::g_FontRegular =
-    //     io.Fonts->AddFontFromFileTTF(roboto_regular.string().c_str(), 16.0f, &config);
     Widgets::g_FontRegular =
         io.Fonts->AddFontFromMemoryTTF(const_cast<void*>(static_cast<const void*>(roboto_regular)),
                                        sizeof(roboto_regular), 16.0f, &config);
@@ -78,7 +73,23 @@ int main() {
         io.Fonts->AddFontFromMemoryTTF(const_cast<void*>(static_cast<const void*>(roboto_bold)),
                                        sizeof(roboto_bold), 16.0f, &config);
     io.FontDefault = Widgets::g_FontRegular;
-    // }
+
+#else 
+    // Load the Regular Font (Size 16.0f) first so it becomes the default UI font,
+    // followed by the Bold Font (Size 20.0f) for headings and gauges
+    std::filesystem::path roboto_regular = "fonts/Roboto-Regular.ttf";
+    std::filesystem::path roboto_bold = "fonts/Roboto-Bold.ttf";
+    if (std::filesystem::exists(roboto_regular) && std::filesystem::exists(roboto_bold)) {
+        Widgets::g_FontRegular =
+            io.Fonts->AddFontFromFileTTF(roboto_regular.string().c_str(), 16.0f, &config);
+
+        Widgets::g_FontBold =
+            io.Fonts->AddFontFromFileTTF(roboto_bold.string().c_str(), 16.0f, &config);
+        io.FontDefault = Widgets::g_FontRegular;
+        
+    }
+
+#endif
 
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     ImGui::StyleColorsDark();
